@@ -1,0 +1,289 @@
+package app.fieldscan.domain
+
+import app.fieldscan.domain.Cond.Carry
+import app.fieldscan.domain.Cond.Window
+import app.fieldscan.domain.Cond.With
+import app.fieldscan.domain.Cond.Without
+import app.fieldscan.domain.Daypart.DAWN
+import app.fieldscan.domain.Daypart.DAY
+import app.fieldscan.domain.Daypart.DUSK
+import app.fieldscan.domain.Daypart.NIGHT
+import app.fieldscan.domain.Step.Circle
+import app.fieldscan.domain.Step.Climb
+import app.fieldscan.domain.Step.Dark
+import app.fieldscan.domain.Step.Face
+import app.fieldscan.domain.Step.FaceDown
+import app.fieldscan.domain.Step.Hush
+import app.fieldscan.domain.Step.Middle
+import app.fieldscan.domain.Step.Morse
+import app.fieldscan.domain.Step.Near
+import app.fieldscan.domain.Step.Note
+import app.fieldscan.domain.Step.Still
+import app.fieldscan.domain.Step.Wait
+import app.fieldscan.domain.Step.Walk
+
+enum class Tier(val t: T, val about: T, val total: Int) {
+    DWELLER(T("Обитатели", "Dwellers"), T("Каждый вид живёт в своём типе мест.", "Each kind lives in its own kind of place."), 120),
+    HOST(T("Хозяева", "Keepers"), T("Один на район — в самом-самом месте.", "One per district, in its most-of-all place."), 30),
+    WANDERER(T("Странники", "Wanderers"), T("Приходят с туманом, снегом и луной.", "They come with fog, snow and the moon."), 25),
+    LEGEND(T("Легенды", "Legends"), T("Точки на планете: ради них едут.", "Points on the planet worth a journey."), 15),
+    HOMELY(T("Домовые", "Homelings"), T("Заводятся в твоих собственных местах.", "They settle in your own places."), 10),
+}
+
+/** For keepers: which place of the district is theirs. */
+enum class Most { OLDEST_TREE, LONGEST_STAIRS, LONGEST_BRIDGE, BUSIEST_CROSSING }
+
+/**
+ * One creature of the bestiary. Dwellers live in [habitat]; keepers in the [most] place of the district;
+ * wanderers come by [conds] to any place of [habitat]; the legend sits on a degree confluence; homelings at home.
+ */
+data class Creature(
+    val id: String,
+    val tier: Tier,
+    val name: T,
+    val habitat: Habitat,
+    val kb: Int,
+    val conds: List<Cond>,
+    val steps: List<Step>,
+    val riddle: T,
+    /** A scrap of the signal the scanner hears: "…хлюп… под… ступи…". */
+    val hint: T,
+    val rumour: T,
+    /** Riddles the rumour opens. */
+    val tells: List<String>,
+    val body: Body,
+    val most: Most? = null,
+    val gives: Item? = null,
+)
+
+object Bestiary {
+    private fun c(
+        id: String, tier: Tier, ru: String, en: String, habitat: Habitat, kb: Int,
+        conds: List<Cond>, steps: List<Step>, riddle: T, hint: T, rumour: T, tells: List<String>, body: Body,
+        most: Most? = null, gives: Item? = null,
+    ) = Creature(id, tier, T(ru, en), habitat, kb, conds, steps, riddle, hint, rumour, tells, body, most, gives)
+
+    private val NIGHTS = setOf(DUSK, NIGHT)
+
+    val all: List<Creature> = listOf(
+        // ——— dwellers ———
+        c("most", Tier.DWELLER, "Мостовик", "Bridgeling", Habitat.BRIDGE, 2,
+            listOf(Without("peskar")), listOf(Middle, Face(Facing.UPSTREAM), Still(15)),
+            T("Слышен под мостами. Выходит к тому, кто стоит ровно посередине и смотрит против течения. Суеты не любит.",
+                "Heard under bridges. Comes out to someone standing right in the middle, facing upstream. Doesn't like fuss."),
+            T("…хлюп… под… ступи…", "…splash… under… step…"),
+            T("Колодезник у воды из камня отзывается только на ля. Долгое, ровное.", "The Wellkeeper by the stone spring answers only to an A. Long and even."),
+            listOf("kolod", "host_bridge"), Body(Shape.HUNCH, tone = 74, fur = .55f, furLen = 8f, droop = true, horns = 2, arms = 1.2f)),
+        c("peskar", Tier.DWELLER, "Пескарь", "Gudgeon", Habitat.BRIDGE, 1,
+            listOf(Window(setOf(DAWN, DAY))), listOf(Middle, FaceDown(40)),
+            T("Днём крутится у мостов, где посередине можно постоять. Покажется, если отвернуться от него совсем: экраном вниз.",
+                "Darts about bridges by day. Shows itself if you turn away completely: phone face down."),
+            T("…плеск… отвер… ни…", "…splish… turn… away…"),
+            T("Мостовик меня боится. Если я с тобой, он не выйдет — так что сначала его, потом меня.", "The Bridgeling is afraid of me. If I'm with you he won't come out, so catch him first."),
+            listOf("most"), Body(Shape.SQUAT, size = .7f, tone = 96, fur = 0f, amp = 8f, eyes = 2, arms = .5f)),
+        c("peril", Tier.DWELLER, "Перильник", "Railwalker", Habitat.BRIDGE, 2,
+            listOf(Window(setOf(NIGHT))), listOf(Middle, Hush(60)),
+            T("Ночью ходит по перилам. Остановись посередине моста и минуту не смотри в экран: он подойдёт сам.",
+                "Walks the railings at night. Stop in the middle of a bridge and don't look at the screen for a minute: it'll come over."),
+            T("…тук… тук… не смот…", "…tap… tap… don't look…"),
+            T("Над самым длинным пролётом города кто-то стоит всю ночь. Перила под ним не скрипят.", "Someone stands all night over the longest span in town. The railing doesn't creak under him."),
+            listOf("host_bridge"), Body(Shape.TALL, size = 1.1f, tone = 52, fur = .1f, furLen = 3f, lean = .5f, arms = 1.3f, amp = 3f)),
+        c("kolod", Tier.DWELLER, "Колодезник", "Wellkeeper", Habitat.SPRING, 2,
+            listOf(Window(NIGHTS)), listOf(Near(10), Note(9)),
+            T("Живёт там, где вода бьёт из камня. Выходит после заката к тому, кто споёт ему одну ноту — долгую.",
+                "Lives where water springs from stone. After sunset it comes to someone who sings it one note, a long one."),
+            T("…звон… звон… ля…", "…chime… chime… ahh…"),
+            T("В тумане у реки кто-то идёт вдоль берега. Иди рядом и не сворачивай.", "In the fog by the river someone walks along the bank. Walk beside it and don't turn off."),
+            listOf("tuman"), Body(Shape.HAIR, tone = 82, fur = .9f, furLen = 22f, droop = true, eyes = 1, amp = 5f), gives = Item.DROP),
+        c("ost", Tier.DWELLER, "Остановочник", "Stopwaiter", Habitat.STOP, 1,
+            listOf(Window(setOf(DAWN))), listOf(Near(15), Wait(10)),
+            T("Ждёт на остановках, где никто не ждёт. Показывается тем, кто встретил там рассвет и не уехал.",
+                "Waits at stops where nobody waits. Shows itself to those who met the dawn there and didn't leave."),
+            T("…гул… ещё… подо…жди…", "…hum… wait… a bit…"),
+            T("На перекрёстке, где сходятся пять дорог, в полночь кто-то ходит по кругу. Не туда, куда часы.", "Where five roads meet, someone walks in circles at midnight. Not the way the clock goes."),
+            listOf("perek"), Body(Shape.TALL, size = 1.15f, tone = 26, fur = 0f, lean = .8f, amp = 4f, arms = 1.1f)),
+        c("lest", Tier.DWELLER, "Лестничник", "Stairling", Habitat.STEPS, 2,
+            emptyList(), listOf(Climb, Still(10)),
+            T("Живёт на длинных лестницах. Ждёт наверху того, кто поднялся, ни разу не остановившись.",
+                "Lives on long stairs. Waits at the top for someone who climbed without stopping once."),
+            T("…шарк… вверх… не стой…", "…scuff… up… don't stop…"),
+            T("Наверху самой длинной лестницы города кто-то сидит и смотрит на флюгеры. Пустит, только если с тобой Флюгерник.",
+                "At the top of the longest stairs in town someone sits watching the weathervanes. Lets you near only with a Vanecrow."),
+            listOf("host_steps", "fluger"), Body(Shape.CRAWLER, tone = 66, fur = .35f, furLen = 5f, amp = 5f, eyes = 3)),
+        c("mysh", Tier.DWELLER, "Аптечная мышь", "Pharmacy mouse", Habitat.PHARMACY, 1,
+            emptyList(), listOf(Near(20), FaceDown(60)),
+            T("Крутится у аптек. Выйдет, если на минуту отвернуться — совсем отвернуться.",
+                "Scurries round pharmacies. Comes out if you look away for a minute — really look away."),
+            T("…шурх… минут… ку…", "…rustle… a minute…"),
+            T("Под старыми фонарями живут те, кто отвечает на свет. Мигни им их букву.", "Under the old lamps live those who answer light. Blink them their letter."),
+            listOf("fonar"), Body(Shape.SMALL, tone = 84, fur = .7f, furLen = 5f, ears = 2, tail = true, amp = 4f)),
+        c("fonar", Tier.DWELLER, "Фонарник", "Lampling", Habitat.LAMP, 1,
+            listOf(Window(NIGHTS)), listOf(Near(15), Morse("..-.", T("Ф", "F"))),
+            T("Живёт у фонарей. Когда стемнеет, мигни ему фонариком его букву — он ответит.",
+                "Lives by street lamps. After dark blink its letter with your torch and it will answer."),
+            T("…тик… тик-тик… так…", "…tick… tick-tick… tock…"),
+            T("Говорят, на детской площадке после заката кто-то качается на качелях. Сам.", "They say after sunset someone swings on the playground swings. By itself."),
+            listOf("kachel"), Body(Shape.TALL, size = 1.25f, tone = 70, fur = .12f, furLen = 3f, glow = true, eyes = 0, amp = 3f, arms = 1.3f)),
+        c("kachel", Tier.DWELLER, "Качельник", "Swingling", Habitat.PLAYGROUND, 1,
+            listOf(Window(setOf(DUSK))), listOf(Near(25), Still(30)),
+            T("В сумерках качается на пустых площадках. Сядь неподалёку и полминуты не шевелись.",
+                "Swings on empty playgrounds at dusk. Sit nearby and don't move for half a minute."),
+            T("…скрип… скрип… тише…", "…creak… creak… hush…"),
+            T("Порожек твоего дома знает всех во дворе. Спроси его.", "The Doorstepper of your house knows everyone in the yard. Ask him."),
+            listOf("porog"), Body(Shape.SQUAT, size = .85f, tone = 60, fur = .6f, furLen = 6f, arms = 1.6f, eyes = 2)),
+        c("perek", Tier.DWELLER, "Перекрёстный", "Crossling", Habitat.CROSSING, 2,
+            listOf(Window(setOf(NIGHT))), listOf(Near(40), Circle(3, ccw = true)),
+            T("Где сходятся пять дорог, ночью. Ходит по кругу — только не туда, куда ходят часы.",
+                "Where five roads meet, at night. Walks in circles, just not the way clocks go."),
+            T("…шорох… кругом… обрат…", "…hiss… round… back…"),
+            T("У самого большого перекрёстка района стоит кто-то, кому все дороги свои.", "At the district's biggest crossroads stands one to whom every road belongs."),
+            listOf("host_cross"), Body(Shape.TALL, size = 1.05f, tone = 40, fur = .08f, eyes = 3, lean = -.3f, amp = 4f)),
+        c("zvonar", Tier.DWELLER, "Звонарь", "Bellwether", Habitat.WORSHIP, 2,
+            listOf(Window(setOf(DUSK))), listOf(Near(40), Face(Facing.TOWARD), Still(30)),
+            T("Живёт у храмов и часовен. В сумерках встань лицом к колокольне и полминуты не шевелись.",
+                "Lives by churches and chapels. At dusk face the belfry and keep still for half a minute."),
+            T("…бом… к нему… ли…цом…", "…dong… face… it…"),
+            T("Флюгерник сидит там, где ветер. Встань к ветру лицом — он и спустится.", "The Vanecrow sits where the wind is. Face into the wind and it'll come down."),
+            listOf("fluger"), Body(Shape.TALL, size = 1f, tone = 48, fur = .15f, furLen = 4f, lean = -.6f, amp = 4f)),
+        c("podnozh", Tier.DWELLER, "Подножник", "Plinthling", Habitat.MEMORIAL, 1,
+            listOf(Window(setOf(NIGHT))), listOf(Circle(1, ccw = false), Still(20)),
+            T("Ночью сидит у подножия памятников. Обойди памятник по солнцу и постой.",
+                "Sits at the foot of monuments at night. Walk round it sunwise and stand a while."),
+            T("…стук… по солн… цу…", "…knock… sun… wise…"),
+            T("Есть место, где градусы сходятся ровно. Там стоит Страж — не для всех.", "There's a place where the degrees meet exactly. A Warden stands there — not for everyone."),
+            listOf("strazh"), Body(Shape.SQUAT, size = .9f, tone = 58, fur = .3f, horns = 1, amp = 6f)),
+        c("fluger", Tier.DWELLER, "Флюгерник", "Vanecrow", Habitat.TOWER, 2,
+            listOf(Window(setOf(DAY, DUSK))), listOf(Near(60), Face(Facing.WIND), Still(20)),
+            T("Сидит на башнях, где флюгер. Встань лицом к ветру и постой — он спустится посмотреть.",
+                "Perches on towers with weathervanes. Stand facing the wind and it'll come down to look."),
+            T("…свист… к ветру… ли…", "…whistle… into… wind…"),
+            T("Наверху самой длинной лестницы меня ждут. Возьми меня туда.", "At the top of the longest stairs someone's waiting for me. Take me there."),
+            listOf("host_steps"), Body(Shape.PERCH, tone = 44, fur = .7f, furLen = 6f, eyes = 2, amp = 5f), gives = Item.FEATHER),
+        c("prichal", Tier.DWELLER, "Причальник", "Moorling", Habitat.PIER, 2,
+            listOf(Window(NIGHTS)), listOf(Near(20), Still(30)),
+            T("Держится причалов. Вечером постой у самой воды полминуты — он поднимется посмотреть, кто пришёл.",
+                "Keeps to piers. In the evening stand by the water half a minute and it'll rise to see who came."),
+            T("…плеск… у воды… сто…", "…lap… by water… stay…"),
+            T("Туман приходит с реки, и с ним приходит Туманник. Жди тумана.", "Fog comes off the river and the Fogling comes with it. Wait for fog."),
+            listOf("tuman"), Body(Shape.HUNCH, size = .9f, tone = 80, fur = .8f, furLen = 14f, droop = true, horns = 0, arms = 1.1f)),
+        c("eho", Tier.DWELLER, "Эхо", "Echo", Habitat.UNDERPASS, 1,
+            emptyList(), listOf(Near(15), Note(0)),
+            T("Живёт в подземных переходах. Спой там до — оно повторит и покажется.",
+                "Lives in underpasses. Sing a C in there: it will repeat it and show itself."),
+            T("…эхо… до… о… о…", "…echo… C… e… e…"),
+            T("Звонарь слышит меня через весь город. Он у колокольни, в сумерках.", "The Bellwether hears me across town. He's by the belfry at dusk."),
+            listOf("zvonar"), Body(Shape.TALL, size = .95f, tone = 110, fur = 0f, amp = 7f, alpha = .6f, eyes = 2)),
+        c("pochtar", Tier.DWELLER, "Почтарь", "Postling", Habitat.POSTBOX, 1,
+            emptyList(), listOf(Near(10), Hush(60)),
+            T("Живёт в почтовых ящиках. Постой рядом минуту, не трогая экран, — будто пишешь письмо в голове.",
+                "Lives in postboxes. Stand by one for a minute without touching the screen, as if writing a letter in your head."),
+            T("…шелест… пиши… мол…ча…", "…rustle… write… quietly…"),
+            T("На скамейках сидит тот, кто никуда не спешит. Посиди с ним.", "On benches sits one who's in no hurry. Sit with him."),
+            listOf("sidel"), Body(Shape.SMALL, size = .8f, tone = 64, fur = .4f, ears = 0, tail = false, eyes = 2)),
+        c("sidel", Tier.DWELLER, "Сиделец", "Sitter", Habitat.BENCH, 1,
+            emptyList(), listOf(Near(10), Hush(120)),
+            T("Сидит на скамейках. Присядь рядом и две минуты не трогай телефон.",
+                "Sits on benches. Sit down beside it and leave the phone alone for two minutes."),
+            T("…вздох… сиди… сиди…", "…sigh… sit… sit…"),
+            T("Самое старое дерево округи кого-то держит в корнях. Без подарка из другого леса не выйдет.", "The oldest tree around holds someone in its roots. It won't come out without a gift from another wood."),
+            listOf("host_tree"), Body(Shape.SQUAT, size = .95f, tone = 56, fur = .75f, furLen = 9f, amp = 6f)),
+        c("okoyom", Tier.DWELLER, "Окоём", "Horizonling", Habitat.VIEWPOINT, 2,
+            listOf(Window(setOf(DUSK))), listOf(Near(40), Face(Facing.WEST), Still(20)),
+            T("Живёт на смотровых площадках. На закате встань лицом на запад и постой.",
+                "Lives on viewpoints. At sunset face west and stand a while."),
+            T("…ветер… за…кат… стой…", "…wind… sunset… stay…"),
+            T("В полнолуние по открытым местам бегает пёс. Встань так, чтобы тень легла на север.", "On full-moon nights a dog runs the open places. Stand so your shadow falls north."),
+            listOf("pyos"), Body(Shape.PERCH, size = 1.2f, tone = 50, fur = .5f, furLen = 8f, eyes = 2)),
+        c("kornevik", Tier.DWELLER, "Корневик", "Rootling", Habitat.TREE, 1,
+            emptyList(), listOf(Near(8), Circle(1, ccw = false), Hush(30)),
+            T("Живёт под деревьями. Обойди ствол по солнцу и полминуты помолчи.",
+                "Lives under trees. Walk round the trunk sunwise and keep quiet for half a minute."),
+            T("…скрип… по кругу… ти…ше…", "…creak… round… hush…"),
+            T("Возьми жёлудь — пригодится у самого старого дерева.", "Take an acorn: you'll need it at the oldest tree."),
+            listOf("host_tree"), Body(Shape.GNARL, size = .6f, tone = 54, fur = .5f, furLen = 5f, eyes = 2), gives = Item.ACORN),
+        c("kamysh", Tier.DWELLER, "Камышник", "Reedling", Habitat.WATER, 1,
+            listOf(Window(setOf(DAWN))), listOf(Near(25), Still(30)),
+            T("На рассвете стоит в воде у берега. Подойди к воде и полминуты не шевелись.",
+                "At dawn it stands in the water by the bank. Come to the water and don't move for half a minute."),
+            T("…плеск… рас…свет…", "…lap… dawn…"),
+            T("Под мостами живёт Мостовик. Встань посередине и смотри против течения.", "The Bridgeling lives under bridges. Stand in the middle and face upstream."),
+            listOf("most"), Body(Shape.HAIR, size = .9f, tone = 70, fur = .9f, furLen = 16f, droop = true, eyes = 2, amp = 7f)),
+
+        // ——— keepers ———
+        c("host_tree", Tier.HOST, "Хозяин старого дерева", "Keeper of the Old Tree", Habitat.TREE, 4,
+            listOf(Carry(Item.ACORN)), listOf(Near(15), Circle(3, ccw = false), Hush(180)),
+            T("Самое старое дерево округи помнит его. Принеси жёлудь из другого леса, трижды обойди ствол по солнцу и три минуты помолчи.",
+                "The oldest tree around remembers him. Bring an acorn from another wood, walk round the trunk three times sunwise and keep quiet for three minutes."),
+            T("…скр…ип… жё…лудь…", "…cre…ak… a…corn…"),
+            T("Корни этого дерева дотянулись до лестницы. Наверху сидит другой хозяин.", "This tree's roots reach the stairs. Another keeper sits at the top."),
+            listOf("host_steps"), Body(Shape.GNARL, size = 1.4f, tone = 48, fur = .6f, furLen = 7f, eyes = 2, amp = 7f), most = Most.OLDEST_TREE),
+        c("host_steps", Tier.HOST, "Хозяин долгой лестницы", "Keeper of the Long Stairs", Habitat.STEPS, 4,
+            listOf(With("fluger")), listOf(Climb, Face(Facing.NORTH), Still(30)),
+            T("Сидит наверху самой длинной лестницы района и смотрит на флюгеры. Поднимись без остановки с Флюгерником в памяти и посмотри на север.",
+                "Sits atop the district's longest stairs watching weathervanes. Climb without stopping with a Vanecrow in memory and look north."),
+            T("…шарк… вы…ше… флю…", "…scuff… high…er… vane…"),
+            T("Под самым длинным мостом спит тот, кому все мосты свои.", "Under the longest bridge sleeps the one all bridges belong to."),
+            listOf("host_bridge"), Body(Shape.CRAWLER, size = 1.4f, tone = 60, fur = .45f, furLen = 6f, eyes = 4), most = Most.LONGEST_STAIRS),
+        c("host_bridge", Tier.HOST, "Хозяин долгого пролёта", "Keeper of the Long Span", Habitat.BRIDGE, 4,
+            listOf(Window(setOf(NIGHT))), listOf(Middle, Face(Facing.UPSTREAM), Still(30), Hush(60)),
+            T("Живёт под самым длинным мостом района. Ночью встань посередине, смотри против течения и минуту не трогай экран.",
+                "Lives under the district's longest bridge. At night stand in the middle, face upstream and leave the screen alone for a minute."),
+            T("…хлю…уп… дол…гий…", "…spla…ash… lo…ong…"),
+            T("Все мосты сходятся к перекрёсткам. Там тоже есть хозяин.", "All bridges lead to crossroads. They have a keeper too."),
+            listOf("host_cross"), Body(Shape.HUNCH, size = 1.4f, tone = 66, fur = .6f, furLen = 10f, droop = true, horns = 2, arms = 1.3f), most = Most.LONGEST_BRIDGE),
+        c("host_cross", Tier.HOST, "Хозяин перекрёстков", "Keeper of Crossroads", Habitat.CROSSING, 4,
+            listOf(Window(setOf(NIGHT))), listOf(Near(40), Circle(3, ccw = true), Still(20)),
+            T("Стоит на самом большом перекрёстке района. Ночью трижды обойди его против часовой и замри.",
+                "Stands at the district's biggest crossroads. At night walk round it three times anticlockwise and freeze."),
+            T("…шорох… все до…роги…", "…hiss… all… roads…"),
+            T("Самое старое дерево помнит, где раньше был этот перекрёсток.", "The oldest tree remembers where this crossroads used to be."),
+            listOf("host_tree"), Body(Shape.TALL, size = 1.4f, tone = 36, fur = .15f, eyes = 4, arms = 1.4f, lean = .3f, amp = 4f), most = Most.BUSIEST_CROSSING),
+
+        // ——— wanderers ———
+        c("tuman", Tier.WANDERER, "Туманник", "Fogling", Habitat.WATER, 3,
+            listOf(Cond.Fog), listOf(Near(60), Walk(300, water = true)),
+            T("Приходит с туманом и уходит с ним. Идёт вдоль воды — и ты иди, не сворачивая, метров триста.",
+                "Comes with the fog and leaves with it. It walks along the water: walk with it, three hundred metres, without turning off."),
+            T("…ш-ш-ш… вдоль… во…ды…", "…sh-sh-sh… along… water…"),
+            T("Пескарь у мостов днём — Мостовик его боится.", "The Gudgeon by the bridges by day — the Bridgeling's afraid of it."),
+            listOf("peskar"), Body(Shape.FOG, size = 1.2f, tone = 120, fur = 0f, amp = 16f, alpha = .55f, eyes = 2)),
+        c("pyos", Tier.WANDERER, "Лунный пёс", "Moon dog", Habitat.VIEWPOINT, 3,
+            listOf(Cond.FullMoon, Window(setOf(NIGHT))), listOf(Near(60), Face(Facing.NORTH), Still(30)),
+            T("В полнолуние бегает по открытым местам. Встань так, чтобы твоя тень от луны легла на север, и замри.",
+                "Runs the open places on full-moon nights. Stand so your moon shadow falls north, and freeze."),
+            T("…вой… луна… се…вер…", "…howl… moon… north…"),
+            T("Под первым снегом года проходит кто-то, кто не оставляет следов.", "Under the year's first snow someone passes who leaves no tracks."),
+            listOf("sneg"), Body(Shape.QUAD, tone = 76, fur = .7f, furLen = 7f, ears = 2, tail = true, eyes = 2)),
+        c("sneg", Tier.WANDERER, "Первоснежник", "First-Snow", Habitat.BENCH, 3,
+            listOf(Cond.Snow), listOf(Walk(100, water = false), Still(15)),
+            T("Приходит в снегопад. Пройди сто шагов по свежему снегу и обернись — он идёт по твоим следам.",
+                "Comes when it snows. Walk a hundred steps through fresh snow and stop: it's walking in your tracks."),
+            T("…хруст… сто… ша…гов…", "…crunch… hundred… steps…"),
+            T("Порожек ждёт тебя дома. Он всех знает.", "The Doorstepper waits at home. He knows everyone."),
+            listOf("porog"), Body(Shape.FOG, size = .8f, tone = 150, fur = .3f, amp = 10f, alpha = .7f, eyes = 2)),
+
+        // ——— legend ———
+        c("strazh", Tier.LEGEND, "Страж Слияния", "Confluence Warden", Habitat.VIEWPOINT, 6,
+            emptyList(), listOf(Near(40), Face(Facing.NORTH), Still(60)),
+            T("Стоит там, где градусы сходятся ровно: целая широта и целая долгота. Подойди, повернись на север и минуту не шевелись.",
+                "Stands where the degrees meet exactly: a whole latitude and a whole longitude. Come close, face north and keep still for a minute."),
+            T("…ноль… ноль… ноль…", "…zero… zero… zero…"),
+            T("Ты дошёл. Теперь все карты врут чуть меньше.", "You made it. Every map lies a little less now."),
+            emptyList(), Body(Shape.TALL, size = 1.6f, tone = 44, fur = .08f, eyes = 3, arms = 1.2f, amp = 4f)),
+
+        // ——— homelings ———
+        c("porog", Tier.HOMELY, "Порожек", "Doorstepper", Habitat.HOME, 1,
+            emptyList(), listOf(Near(40), Still(30)),
+            T("Живёт у порога твоего дома. Постой у двери полминуты — он выглянет.",
+                "Lives on your doorstep. Stand by the door half a minute and he'll peek out."),
+            T("…тук… тук… свой…", "…knock… knock… it's me…"),
+            T("Под деревьями во дворе живёт Корневик, а у аптеки — мышь. И фонари тут не простые.", "A Rootling lives under the trees in the yard, a mouse by the pharmacy. And the lamps here aren't ordinary."),
+            listOf("kornevik", "mysh", "fonar"), Body(Shape.SQUAT, size = .8f, tone = 62, fur = .8f, furLen = 9f, eyes = 2, amp = 6f)),
+    )
+
+    val byId: Map<String, Creature> = all.associateBy { it.id }
+    operator fun get(id: String) = byId.getValue(id)
+
+    /** Dwellers that may live in a place of [h], in a fixed order (the place's hash picks one). */
+    fun dwellersOf(h: Habitat): List<Creature> = all.filter { it.tier == Tier.DWELLER && it.habitat == h }
+}

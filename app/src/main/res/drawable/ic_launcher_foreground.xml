@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A scanner dial: ring, bearing line and a red blip. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:strokeColor="#E3E0D4" android:strokeWidth="3.5" android:pathData="M54,30 a24,24 0 1,1 -0.01,0 Z" />
+    <path android:strokeColor="#7E7B70" android:strokeWidth="2" android:pathData="M54,42 a12,12 0 1,1 -0.01,0 Z" />
+    <path android:strokeColor="#E3E0D4" android:strokeWidth="3" android:strokeLineCap="round" android:pathData="M54,54 L70,38" />
+    <path android:fillColor="#B3302A" android:pathData="M64,62 a4,4 0 1,1 -0.01,0 Z" />
+    <path android:fillColor="#E3E0D4" android:pathData="M51.5,24 L56.5,24 L54,19 Z" />
+</vector>

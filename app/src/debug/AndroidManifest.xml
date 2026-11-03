@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only: a receiver adb can drive to test rites from a desk (fake fixes, weather, heading, a tone). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <receiver android:name=".DebugReceiver" android:exported="true" tools:ignore="ExportedReceiver" xmlns:tools="http://schemas.android.com/tools" />
+    </application>
+</manifest>
