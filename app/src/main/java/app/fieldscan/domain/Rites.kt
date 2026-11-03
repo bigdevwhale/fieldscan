@@ -19,6 +19,9 @@ enum class Item(val t: T) {
 sealed interface Cond {
     data class Window(val parts: Set<Daypart>) : Cond
     data object Fog : Cond
+    data object Rain : Cond
+    /** Wind of at least [ms] metres a second. */
+    data class Wind(val ms: Double) : Cond
     data object Snow : Cond
     data object Frost : Cond
     data object FullMoon : Cond

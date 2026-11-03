@@ -39,6 +39,8 @@ object Words {
     fun cond(c: Cond, ru: Boolean): String = when (c) {
         is Cond.Window -> parts(c.parts, ru).replaceFirstChar { it.uppercase() }
         Cond.Fog -> if (ru) "Туман" else "Fog"
+        Cond.Rain -> if (ru) "Дождь" else "Rain"
+        is Cond.Wind -> if (ru) "Сильный ветер, от ${c.ms.toInt()} м/с" else "A strong wind, ${c.ms.toInt()} m/s or more"
         Cond.Snow -> if (ru) "Снегопад" else "Snowfall"
         Cond.Frost -> if (ru) "Мороз" else "Frost"
         Cond.FullMoon -> if (ru) "Полная луна над горизонтом" else "A full moon above the horizon"

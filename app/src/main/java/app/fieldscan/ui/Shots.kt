@@ -56,7 +56,7 @@ fun rememberFrame(c: Catch?, now: Long, thumb: Boolean): ImageBitmap? {
 
 @Composable
 fun FrameImage(img: ImageBitmap?, modifier: Modifier = Modifier, square: Boolean = false) {
-    Box(modifier.fillMaxWidth().aspectRatio(if (square) 1f else 4f / 3f).background(C.ink)) {
+    Box(modifier.fillMaxWidth().aspectRatio(if (square) 1f else 4f / 3f).background(C.film)) {
         img?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
     }
 }
@@ -84,7 +84,7 @@ fun CaptureScreen(c: Catch, now: Long, onDone: () -> Unit) {
             FrameImage(img, Modifier.drawWithContent {
                 val y = size.height * reveal.value
                 drawContent()
-                drawRect(C.ink.copy(alpha = .82f), Offset(0f, y), Size(size.width, size.height - y))
+                drawRect(C.film.copy(alpha = .82f), Offset(0f, y), Size(size.width, size.height - y))
                 if (reveal.value < 1f) drawRect(C.red, Offset(0f, y - 2f), Size(size.width, 4f))
             })
         }

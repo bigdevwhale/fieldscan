@@ -82,7 +82,7 @@ fun Title(text: String, tip: Tip, modifier: Modifier = Modifier) {
 @Composable
 fun TipOverlay(tip: Tip, onClose: () -> Unit) {
     val ru = LocalRu.current
-    Box(Modifier.fillMaxSize().background(C.ink.copy(alpha = .55f)).tap(onClick = onClose), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().background(C.scrim).tap(onClick = onClose), contentAlignment = Alignment.Center) {
         Column(
             Modifier.padding(14.dp).fillMaxWidth().background(C.paper).border(2.dp, C.ink).tap { }
                 .verticalScroll(rememberScrollState()).padding(14.dp),

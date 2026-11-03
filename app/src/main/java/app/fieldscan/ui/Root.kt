@@ -84,6 +84,9 @@ fun Root(onAskLocation: () -> Unit, startTab: Tab = Tab.SCAN, startOver: Over? =
     var now by remember { mutableLongStateOf(clock ?: System.currentTimeMillis()) }
     LaunchedEffect(clock) { if (clock == null) while (true) { delay(15_000); now = System.currentTimeMillis() } }
 
+    val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val dark = when (state.theme) { 1 -> false; 2 -> true; else -> systemDark }
+    if (C.dark != dark) C.dark = dark
     val moment = Moment(now, fix?.at, weather, state)
     val traces = remember(now / 15_000, fix?.at, places, hosts, state, weather) { Scanner.traces(moment, places, hosts) }
     LaunchedEffect(traces) { co.know(traces.filter { !it.caught }.map { it.creature.id }) }
@@ -242,7 +245,7 @@ val DEMO = BuildConfig.DEMO
 /** "Switch the device off?" before leaving the app from the air. */
 @Composable
 private fun ExitConfirm(onStay: () -> Unit, onExit: () -> Unit) {
-    Box(Modifier.fillMaxSize().background(C.ink.copy(alpha = .55f)).tap(onClick = onStay), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().background(C.scrim).tap(onClick = onStay), contentAlignment = Alignment.Center) {
         Column(Modifier.padding(24.dp).fillMaxWidth().background(C.paper).border(2.dp, C.ink).tap { }.padding(16.dp)) {
             T(tr("Выключить прибор?", "Switch the device off?"), Ty.head)
             Gap(6.dp)

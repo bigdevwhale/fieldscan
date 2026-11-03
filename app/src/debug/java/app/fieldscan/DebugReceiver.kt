@@ -38,7 +38,7 @@ class DebugReceiver : BroadcastReceiver() {
                 put(Geo(a.lat + (b.lat - a.lat) * t, a.lon + (b.lon - a.lon) * t))
             }
             "at" -> put(Geo(intent.getDoubleExtra("lat", 0.0), intent.getDoubleExtra("lon", 0.0)))
-            "weather" -> co.weather.value = co.weather.value.copy(fog = intent.getBooleanExtra("fog", false), snow = intent.getBooleanExtra("snow", false), at = now)
+            "weather" -> co.weather.value = co.weather.value.copy(fog = intent.getBooleanExtra("fog", false), snow = intent.getBooleanExtra("snow", false), rain = intent.getBooleanExtra("rain", false), wind = intent.getFloatExtra("wind", 2f).toDouble(), at = now)
             "heading" -> intent.getFloatExtra("deg", -1f).let { co.headingOverride.value = if (it < 0) null else it }
             "tone" -> tone(intent.getFloatExtra("hz", 440f).toDouble(), intent.getIntExtra("ms", 5000))
             "real" -> { co.mockUntil = 0 }

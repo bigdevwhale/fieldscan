@@ -37,15 +37,15 @@
 
 - **Dwellers** live in kinds of places from OpenStreetMap: bridges over running water, springs and fountains, long stairs, bus stops, pharmacies, street lamps, trees, playgrounds, crossroads of five roads, churches, monuments, towers, piers, underpasses, postboxes, benches, viewpoints, riverbanks.
 - **Keepers** live in the district's most-of-all places, found on the phone: the oldest tree, the longest stairs, the longest bridge, the busiest crossroads.
-- **Wanderers** come with the weather (MET Norway): fog by the water, snowfall, a full moon.
+- **Wanderers** come with the weather (MET Norway): fog by the water, rain, a strong wind, frost, snowfall, a full moon.
 - **Legends** stand on points of the planet, like a whole-degree confluence.
 - **Homelings** settle at your own home.
 
-This beta has 29 creatures. A place always holds the same creature; about four in ten fitting places are empty.
+This beta has 50 creatures. A place always holds the same creature; about four in ten fitting places are empty.
 
 ## A manual on every screen
 
-The first time a screen opens, a page of the device's manual explains it; the «?» next to the title opens it again. Back from any screen returns to the air; on the air it asks before switching off. The language (system, Russian or English) is set in Device.
+The first time a screen opens, a page of the device's manual explains it; the «?» next to the title opens it again. Back from any screen returns to the air; on the air it asks before switching off. The theme (system, light or a dark night mode of the screen) and the language (system, Russian or English) are set in Device.
 
 ## Privacy
 

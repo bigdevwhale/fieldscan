@@ -45,6 +45,8 @@ data class GameState(
     val started: Long = 0,
     /** Manual pages already read (Tip names). */
     val tips: Set<String> = emptySet(),
+    /** 0 follows the system, 1 light, 2 dark. */
+    val theme: Int = 0,
 ) {
     val caughtIds: Set<String> get() = catches.map { it.creature }.toSet()
     val inMemory: List<Catch> get() = catches.filter { it.archived == null }
@@ -101,6 +103,8 @@ data class Moment(val now: Long, val me: Geo?, val weather: Weather, val state: 
     fun ok(c: Cond): Boolean = when (c) {
         is Cond.Window -> part in c.parts
         Cond.Fog -> weather.fog
+        Cond.Rain -> weather.rain
+        is Cond.Wind -> weather.wind >= c.ms
         Cond.Snow -> weather.snow
         Cond.Frost -> weather.frost
         Cond.FullMoon -> Sky.fullMoon(now) && Sky.moonPos(now, me ?: Geo(55.75, 37.62))[0] > 2

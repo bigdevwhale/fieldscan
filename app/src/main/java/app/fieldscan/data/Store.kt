@@ -48,6 +48,7 @@ class Store(context: Context) {
             put("items", JSONArray(s.items.map { it.name }))
             put("nightOff", s.nightOff); put("shy", s.shy); put("sound", s.sound); put("started", s.started)
             put("tips", JSONArray(s.tips.toList()))
+            put("theme", s.theme)
         }
 
         fun fromJson(o: JSONObject): GameState {
@@ -71,6 +72,7 @@ class Store(context: Context) {
                 nightOff = o.optBoolean("nightOff"), shy = o.optBoolean("shy"), sound = o.optBoolean("sound", true),
                 started = o.optLong("started"),
                 tips = strs("tips").toSet(),
+                theme = o.optInt("theme"),
             )
         }
     }

@@ -85,6 +85,15 @@ abstract class ScreensBase {
     @Test fun card() { seed(); shot("5-card") { Root({}, Tab.BEST, Over.Card("tuman"), clock = evening) } }
     @Test fun riddle() { seed(); shot("6-riddle") { Root({}, Tab.BEST, Over.Riddle("kolod"), clock = evening) } }
     @Test fun rumours() { seed(); shot("7-rumours") { Root({}, Tab.RUM, clock = evening) } }
+    @Test fun darkScan() { seed(); app.container.update { it.copy(theme = 2) }; shot("d1-scan") { Root({}, Tab.SCAN, clock = evening) } }
+    @Test fun darkBestiary() { seed(); app.container.update { it.copy(theme = 2) }; shot("d2-bestiary") { Root({}, Tab.BEST, clock = evening) } }
+    @Test fun darkRite() {
+        seed(); app.container.update { it.copy(theme = 2) }
+        val t = traces().first { it.creature.id == "kolod" || it.creature.id == "peril" || it.creature.id == "perek" }
+        app.container.fix.value = Fix(t.place.at.offset(200.0, 60.0), 6f, evening)
+        shot("d3-rite") { Root({}, Tab.SCAN, Over.Rite(t), clock = evening) }
+    }
+    @Test fun darkDevice() { seed(); app.container.update { it.copy(theme = 2) }; shot("d4-device") { Root({}, Tab.DEV, clock = evening) } }
     @Test fun manual() { seed(); app.container.update { it.copy(tips = it.tips - "SCAN") }; shot("9-manual") { Root({}, Tab.SCAN, clock = evening) } }
     @Test fun device() { seed(); shot("8-device") { Root({}, Tab.DEV, clock = evening) } }
 }

@@ -6,6 +6,16 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [0.10.0]
+
+- A dark theme: the screen's night mode, dark paper and light ink. System, light or dark, in Device.
+- 21 more creatures, 50 in all: a new dweller for every kind of place (the Grey mouse at the all-night pharmacy, the Lamp-walker, the Candling, the Clockling, the Strider…), wanderers that come with rain, a strong wind and frost, and two homelings for dawn and midnight at your door.
+
+<!-- tg
+В «Сканере» появилась тёмная тема: экран прибора переходит в ночной режим. Выбрать её можно в «Приборе».
+Существ стало 50: у каждого типа мест появился новый жилец, а ещё странники, которые приходят с дождём, сильным ветром и морозом.
+-->
+
 ## [0.9.0]
 
 The first version, a beta.

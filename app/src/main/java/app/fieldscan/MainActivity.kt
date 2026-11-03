@@ -25,6 +25,9 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(t), navigationBarStyle = SystemBarStyle.dark(t))
         Still.on = BuildConfig.SHOTS
         Frames.init(this)
+        // the right paper from the first frame, before Root reads the setting
+        val night = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        app.fieldscan.ui.C.dark = when (container.state.value.theme) { 1 -> false; 2 -> true; else -> night }
         tracker = Tracker(this) { container.onFix(it) }
         val ru = resources.configuration.locales[0].language == "ru"
         setContent {

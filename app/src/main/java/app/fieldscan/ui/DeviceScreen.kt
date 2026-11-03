@@ -85,6 +85,14 @@ fun DeviceScreen(state: GameState, fix: Fix?, now: Long) {
         Toggle(tr("Ночные существа", "Night creatures"), tr("Выключи — и ночные следы пропадут из эфира.", "Off: night-only traces disappear from the air."), !state.nightOff) { co.update { it.copy(nightOff = !it.nightOff) } }
         Toggle(tr("Тихий вариант", "Quiet way"), tr("Вместо пения — замереть на 20 секунд.", "Instead of singing, keep still for 20 seconds."), state.shy) { co.update { it.copy(shy = !it.shy) } }
         Gap(6.dp)
+        T(tr("Тема", "Theme"), Ty.body)
+        Gap(4.dp)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            for ((v, label) in listOf(0 to tr("Системная", "System"), 1 to tr("Светлая", "Light"), 2 to tr("Тёмная", "Dark"))) {
+                Btn(label, Modifier.weight(1f), outline = state.theme != v) { co.update { it.copy(theme = v) } }
+            }
+        }
+        Gap(10.dp)
         T(tr("Язык", "Language"), Ty.body)
         Gap(4.dp)
         val cur = androidx.appcompat.app.AppCompatDelegate.getApplicationLocales().toLanguageTags().take(2)
