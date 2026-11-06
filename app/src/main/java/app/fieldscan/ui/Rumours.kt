@@ -38,9 +38,8 @@ private fun Journal(state: GameState, now: Long) {
     val aside = Story.bonusOpen(state).map { it.title to it.text } +
         app.fieldscan.domain.Finds.made(state).map { app.fieldscan.domain.T("Находка: " + it.title.ru, "Find: " + it.title.en) to it.text }
     var shown by remember { mutableStateOf(Story.pages.getOrNull(state.story - 1)?.title) }
-    T(tr("Журнал Н. Ветровой", "N. Vetrova's journal"), Ty.head)
-    T(tr("Записи прежнего хозяина прибора · страниц ${state.story} из ${Story.pages.size}", "The device's last owner's notes · page ${state.story} of ${Story.pages.size}"), Ty.small)
-    Gap(6.dp)
+    T(tr("Записи Н. Ветровой, прежнего хозяина прибора · страниц ${state.story} из ${Story.pages.size}", "Notes of N. Vetrova, the device's last owner · page ${state.story} of ${Story.pages.size}"), Ty.small)
+    Section(tr("Новая страница", "Newest page"))
     @Composable
     fun entry(title: app.fieldscan.domain.T, text: app.fieldscan.domain.T) {
         val radio = Story.radio[title.en]
@@ -85,7 +84,7 @@ private fun Journal(state: GameState, now: Long) {
         )
         T(tr("Следующая страница: ", "Next page: ") + left.joinToString(" · ").ifEmpty { tr("вот-вот", "any moment") }, Ty.small)
     }
-    Gap(6.dp)
+    if (aside.isNotEmpty() || pages.size > 1) Section(tr("Прежние страницы", "Earlier pages"), aside.size + pages.size - 1)
     for ((t, x) in aside.asReversed()) entry(t, x)
     for ((t, x) in pages.drop(1)) entry(t, x)
 }
@@ -96,11 +95,11 @@ fun RumoursScreen(state: GameState, now: Long) {
     val ru = LocalRu.current
     val firsts = state.catches.groupBy { it.creature }.map { it.value.first() }.sortedByDescending { it.time }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = 8.dp)) {
-        Title(tr("Слухи", "Rumours"), Tip.RUM)
+        Title(tr("Журнал", "Journal"), Tip.RUM)
         Journal(state, now)
-        Rule()
+        Section(tr("Слухи", "Rumours"), firsts.size.takeIf { it > 0 })
         T(tr("Пойманные болтают. Так открываются следующие загадки.", "The caught talk. That's how the next riddles open."), Ty.small)
-        Gap(8.dp)
+        Gap(6.dp)
         if (firsts.isEmpty()) Frame(dashed = true) { T(tr("Пока никто ничего не рассказал. Поймай первого.", "Nobody has told anything yet. Catch the first one."), Ty.small) }
         for (c in firsts) {
             val cr = Bestiary[c.creature]
@@ -115,9 +114,7 @@ fun RumoursScreen(state: GameState, now: Long) {
                 }
             }
         }
-        Rule()
-        T(tr("Хозяева ждут", "The keepers wait"), Ty.head)
-        Gap(4.dp)
+        Section(tr("Хозяева ждут", "The keepers wait"))
         for (cr in Bestiary.all.filter { it.tier == Tier.HOST }) {
             val caught = cr.id in state.caughtIds
             val needs = cr.conds.filter { it is Cond.With || it is Cond.Carry }

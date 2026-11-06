@@ -56,21 +56,26 @@ fun DeviceScreen(state: GameState, fix: Fix?, now: Long) {
                 while (cells.size < state.capacity) cells += 0
                 cells.chunked(8).forEach { row ->
                     Row(Modifier.fillMaxWidth().padding(bottom = 3.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                        row.forEach { k -> Box(Modifier.weight(1f).aspectRatio(1f).border(2.dp, if (k == 2) C.red else C.ink).background(when (k) { 1 -> C.ink; 2 -> C.red; else -> C.paper })) }
+                        row.forEach { k -> Box(Modifier.weight(1f).aspectRatio(1.6f).border(2.dp, if (k == 2) C.red else C.ink).background(when (k) { 1 -> C.ink; 2 -> C.red; else -> C.paper })) }
                     }
                 }
                 Gap(4.dp)
-                if (state.inMemory.isNotEmpty()) T(state.inMemory.joinToString(", ") { Bestiary[it.creature].name.of(ru) + (Rules.worn(it, now).takeIf { w -> w > 0 }?.let { w -> " ($w/4)" } ?: "") }, Ty.small)
+                val wearing = tr("портится", "wearing")
+                if (state.inMemory.isNotEmpty()) T(tr("В памяти: ", "In memory: ") + state.inMemory.joinToString(", ") { Bestiary[it.creature].name.of(ru) + (Rules.worn(it, now).takeIf { w -> w > 0 }?.let { w -> " ($wearing $w/4)" } ?: "") }, Ty.small.copy(color = C.ink))
                 T(tr("Снимки в памяти портятся: каждый день на ступень. В архиве — навсегда.", "Frames in memory wear a step a day. In the archive, they're kept for good."), Ty.small)
                 Gap(8.dp)
                 if (Guide.stage(state) == Guide.Stage.ARCHIVE) {
                     T(tr("↓ Первый обход: сдай кадр сюда — он сохранится навсегда.", "↓ First round: hand the frame in here, it keeps for good."), Ty.small.copy(color = C.red))
                     Gap(4.dp)
                 }
-                Btn(
-                    if (atHome) tr("Сдать в архив", "Hand in to the archive") else tr("Сдать в архив · дом ", "Hand in · home ") + (toHome?.let { Words.dist(it, ru) } ?: "?"),
-                    enabled = atHome && state.inMemory.isNotEmpty(),
-                ) { co.archive() }
+                // the archive is at home: say so plainly instead of a greyed-out button
+                when {
+                    state.inMemory.isEmpty() -> T(tr("Память пуста — сдавать нечего.", "Memory is empty: nothing to hand in."), Ty.small)
+                    atHome -> Btn(tr("Сдать в архив", "Hand in to the archive"), red = true) { co.archive() }
+                    else -> Frame(dashed = true) {
+                        T(tr("Сдать в архив можно дома", "Frames are handed in at home") + (toHome?.let { tr(" · до дома ", " · home is ") + Words.dist(it, ru) } ?: ""), Ty.small.copy(color = C.ink))
+                    }
+                }
             }
         }
         Gap(10.dp)
@@ -177,8 +182,8 @@ private fun StepSource(state: GameState) {
                 Box(Modifier.fillMaxWidth(state.charge.toFloat() / Rules.CHARGE_MAX).height(12.dp).background(C.ink))
             }
             Gap(4.dp)
-            T(tr("Ловушка заряжается шагами, поимка их тратит: обитатель — 500–700, странник — 1500, хозяин — 3000, легенда — 6000. Всего пройдено: ",
-                "The trap charges with steps and a catch spends them: dweller 500–700, wanderer 1500, keeper 3000, legend 6000. Walked in all: ") +
+            T(tr("Шаги заряжают ловушку, поимка тратит заряд. Всего пройдено: ",
+                "Steps charge the trap, a catch spends it. Walked in all: ") +
                 Words.steps(state.walked.toInt(), ru) + ".", Ty.small)
             Gap(8.dp)
             T(tr("Откуда шаги", "Where steps come from"), Ty.body)
@@ -210,8 +215,8 @@ private fun StepSource(state: GameState) {
                 Btn(if (co.healthSteps.available) tr("Разрешить в Health Connect", "Allow in Health Connect") else tr("Установить Health Connect", "Install Health Connect"), outline = true) { pickHealth() }
             }
             Gap(4.dp)
-            T(tr("Health Connect — общее хранилище шагов: туда их складывают Samsung Health, Mi Fitness, Zepp Life, Google Fit, часы и браслеты, и здесь будет столько же.",
-                "Health Connect is the phone's shared step store: Samsung Health, Mi Fitness, Zepp Life, Google Fit, watches and bands put their steps there, and you get the same here."), Ty.small)
+            T(tr("Health Connect собирает шаги из Samsung Health, Mi Fitness, Google Fit, часов и браслетов.",
+                "Health Connect gathers steps from Samsung Health, Mi Fitness, Google Fit, watches and bands."), Ty.small)
         }
     }
 }

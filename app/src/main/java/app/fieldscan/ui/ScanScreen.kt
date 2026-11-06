@@ -55,7 +55,7 @@ import kotlin.math.sin
 const val NEAR = 120.0
 
 @Composable
-fun ScanScreen(traces: List<Trace>, fix: Fix?, tuning: Tuning, state: GameState, now: Long, finds: List<Pair<app.fieldscan.domain.Find, app.fieldscan.domain.Geo>> = emptyList(), dark: Boolean = true, onDevice: () -> Unit = {}, onGuideOff: () -> Unit = {}, onTrace: (Trace) -> Unit) {
+fun ScanScreen(traces: List<Trace>, fix: Fix?, tuning: Tuning, state: GameState, now: Long, finds: List<Pair<app.fieldscan.domain.Find, app.fieldscan.domain.Geo>> = emptyList(), dark: Boolean = true, onDevice: () -> Unit = {}, onJournal: () -> Unit = {}, onGuideOff: () -> Unit = {}, onTrace: (Trace) -> Unit) {
     val ru = LocalRu.current
     val still = Still.on
     val t = rememberInfiniteTransition(label = "sweep")
@@ -84,53 +84,136 @@ fun ScanScreen(traces: List<Trace>, fix: Fix?, tuning: Tuning, state: GameState,
             if (d <= span) Sfx.ping(tr.strength, tr.strength >= 4 && tr.open && !tr.caught)
         }
     }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = 8.dp)) {
-        // the dial zooms to the traces: 500 m, 1, 2 or the full range
-        val far = traces.maxOfOrNull { it.dist } ?: state.radius
-        val zoom = listOf(500.0, 1000.0, 2000.0, state.radius).first { it >= far * 1.15 || it == state.radius }
-        Row(verticalAlignment = Alignment.CenterVertically) {
+    // the dial zooms to the traces: 500 m, 1, 2 or the full range
+    val far = traces.maxOfOrNull { it.dist } ?: state.radius
+    val zoom = listOf(500.0, 1000.0, 2000.0, state.radius).first { it >= far * 1.15 || it == state.radius }
+    val guided = Guide.stage(state) != Guide.Stage.DONE
+    val open = { x: Trace -> Sfx.tune(); onTrace(x) }
+    Column(Modifier.fillMaxSize()) {
+        // the title stays put while the list scrolls, so it's always clear which screen this is
+        Row(Modifier.padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Title(tr("Эфир", "The air"), Tip.SCAN, Modifier.weight(1f))
             Bars(angle)
         }
-        GuideBanner(state, traces, onDevice, onOpen = { Sfx.tune(); onTrace(it) }, onOff = onGuideOff)
-        Box(Modifier.fillMaxWidth().padding(vertical = 4.dp), contentAlignment = Alignment.Center) {
-            Radar(traces, angle, zoom, turn, fix?.at?.let { me -> finds.map { (_, g) -> me.bearing(g) to me.dist(g) } } ?: emptyList(),
-                fix?.at?.let { me -> state.stops.filter { !it.done }.map { me.bearing(it.at) to me.dist(it.at) } } ?: emptyList(), Modifier.size(232.dp).tap { northUp = !northUp })
-        }
-        val line = when {
-            fix == null -> tr("Ищу спутники…", "Looking for satellites…")
-            tuning.busy -> tr("Настройка на эфир: карта ${tuning.done}/${tuning.total}", "Tuning in: map ${tuning.done}/${tuning.total}")
-            tuning.failed -> tr("Нет связи с картой — слышу только ближние следы", "No map connection — only nearby traces")
-            else -> tr("шкала ", "scale ") + Words.dist(zoom, ru) + tr(" · точность ${fix.acc.toInt()} м", " · accuracy ${fix.acc.toInt()} m")
-        }
-        T(line, Ty.small, Modifier.fillMaxWidth(), center = true)
-        T(when {
-            heading == null -> tr("север вверху · компаса нет", "north up · no compass")
-            northUp -> tr("север вверху · нажми на круг — по компасу", "north up · tap the dial to follow the compass")
-            else -> tr("по компасу: вверху — куда смотришь · нажми — север вверху", "by compass: up is where you face · tap for north up")
-        }, Ty.small, Modifier.fillMaxWidth(), center = true)
-        T(tr("заряд ловушки: ", "trap charge: ") + Words.steps(state.charge, ru), Ty.small.copy(color = C.ink), Modifier.fillMaxWidth(), center = true)
-        Gap(8.dp)
-        if (Guide.stage(state) == Guide.Stage.DONE) app.fieldscan.domain.Episodes.current(state)?.takeIf { !app.fieldscan.domain.Episodes.done(state) && it.task !is app.fieldscan.domain.Task.Find }?.let { e ->
-            Frame(Modifier.fillMaxWidth().padding(bottom = 6.dp), dashed = true, red = true) {
-                Column {
-                    T(tr("ЗАДАНИЕ ЖУРНАЛА", "THE JOURNAL'S TASK"), Ty.small.copy(color = C.red))
-                    T(e.say.of(ru), Ty.small.copy(color = C.ink))
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 10.dp).padding(bottom = 8.dp)) {
+            // first what to do now: the guide's step on the first round, then one card with the next thing
+            if (guided) GuideBanner(state, traces, onDevice, onOpen = open, onOff = onGuideOff)
+            else NowCard(traces, finds, fix, heading, dark, ru, open)
+            Box(Modifier.fillMaxWidth().padding(top = 4.dp), contentAlignment = Alignment.Center) {
+                Radar(traces, angle, zoom, turn, fix?.at?.let { me -> finds.map { (_, g) -> me.bearing(g) to me.dist(g) } } ?: emptyList(),
+                    fix?.at?.let { me -> state.stops.filter { !it.done }.map { me.bearing(it.at) to me.dist(it.at) } } ?: emptyList(), Modifier.size(200.dp).tap { northUp = !northUp })
+            }
+            Legend(finds.isNotEmpty(), state.stops.any { !it.done } && !guided)
+            val line = when {
+                fix == null -> tr("Ищу спутники…", "Looking for satellites…")
+                tuning.busy -> tr("Настройка на эфир: карта ${tuning.done}/${tuning.total}", "Tuning in: map ${tuning.done}/${tuning.total}")
+                tuning.failed -> tr("Нет связи с картой — слышу только ближние следы", "No map connection — only nearby traces")
+                else -> tr("круг — ", "dial ") + Words.dist(zoom, ru) + " · " + when {
+                    heading == null -> tr("север вверху", "north up")
+                    northUp -> tr("север вверху · нажми — компас", "north up · tap: compass")
+                    else -> tr("по компасу · нажми — север", "by compass · tap: north")
                 }
             }
+            T(line, Ty.small, Modifier.fillMaxWidth(), center = true)
+
+            val lead = Guide.lead(state, traces)
+            Section(tr("Следы рядом", "Traces nearby"), traces.count { it.open && !it.caught }.takeIf { traces.isNotEmpty() })
+            for (x in traces) TraceRow(x, ru, heading, lead = x.key == lead?.key) { open(x) }
+            if (traces.isEmpty() && fix != null && !tuning.busy) Frame(dashed = true) {
+                T(tr("Рядом тихо. Попробуй дойти до воды, к мостам или дождаться заката.", "It's quiet nearby. Try walking to water or bridges, or wait for sunset."), Ty.small)
+            }
+
+            // the story: the journal's task (it lives in the journal, here only a way to it) and the finds out in the street
+            val task = app.fieldscan.domain.Episodes.current(state)?.takeIf { !guided && !app.fieldscan.domain.Episodes.done(state) && it.task !is app.fieldscan.domain.Task.Find }
+            if (task != null || finds.isNotEmpty()) {
+                Section(tr("Сюжет", "Story"))
+                task?.let { e ->
+                    Row(Modifier.fillMaxWidth().padding(bottom = 6.dp).border(2.dp, C.red).tap(onClick = onJournal).padding(horizontal = 8.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            T(tr("Задание журнала", "The journal's task"), Ty.small.copy(color = C.red))
+                            T(e.say.of(ru), Ty.body)
+                        }
+                        Chevron()
+                    }
+                }
+                for ((f, at) in finds) FindRow(f, at, fix, heading, dark, ru)
+            }
+            if (!guided && state.stops.isNotEmpty()) {
+                Section(tr("Обход недели", "Round of the week"))
+                WeekCard(state, fix, now, ru)
+            }
         }
-        for ((f, at) in finds) FindRow(f, at, fix, dark, ru)
-        if (Guide.stage(state) == Guide.Stage.DONE && state.stops.isNotEmpty()) WeekCard(state, fix, now, ru)
-        val lead = Guide.lead(state, traces)
-        for (x in traces) TraceRow(x, ru, now, heading, lead = x.key == lead?.key) { Sfx.tune(); onTrace(x) }
-        if (traces.isEmpty() && fix != null && !tuning.busy) Frame(dashed = true) {
-            T(tr("Рядом тихо. Попробуй дойти до воды, к мостам или дождаться заката.", "It's quiet nearby. Try walking to water or bridges, or wait for sunset."), Ty.small)
+    }
+}
+
+/** The one thing worth doing next, on top of the air: a trace you're standing at, the nearest awake one, or a find. */
+@Composable
+private fun NowCard(traces: List<Trace>, finds: List<Pair<app.fieldscan.domain.Find, Geo>>, fix: Fix?, heading: Float?, dark: Boolean, ru: Boolean, onOpen: (Trace) -> Unit) {
+    val awake = traces.filter { it.open && !it.caught }
+    val here = awake.firstOrNull { it.dist <= NEAR }
+    val next = here ?: awake.minByOrNull { it.dist }
+    val find = finds.firstOrNull { !it.first.night || dark }
+    @Composable
+    fun card(label: String, title: String, dist: Double?, bearing: Double?, note: String?, button: String?, onClick: () -> Unit) {
+        Column(Modifier.fillMaxWidth().padding(bottom = 6.dp).border(3.dp, C.red).background(C.paper).padding(10.dp)) {
+            T(label, Ty.small.copy(color = C.red))
+            T(title, Ty.head, lines = 2)
+            if (dist != null && bearing != null) Where(dist, bearing, heading, ru, big = true)
+            note?.let { T(it, Ty.small) }
+            button?.let { Gap(8.dp); Btn(it, red = true, onClick = onClick) }
         }
-        Rule()
-        T(tr(
-            "Сканер показывает только след и тип места. Кто там и как его вызвать — подскажут загадка и слухи.",
-            "The scanner shows only a trace and a kind of place. Who's there and how to call it — the riddle and rumours will tell.",
-        ), Ty.small)
+    }
+    when {
+        next != null -> card(
+            if (here != null) tr("ТЫ НА МЕСТЕ", "YOU'RE THERE") else tr("БЛИЖАЙШИЙ ЖИВОЙ СЛЕД", "NEAREST AWAKE TRACE"),
+            placeTitle(next, ru), next.dist, next.bearing,
+            if (here != null) tr("Открой обряд и выполни шаги прямо здесь.", "Open the rite and do the steps right here.")
+            else tr("Открой обряд, прочитай загадку и иди туда. Ближе 120 м прибор позовёт сам.", "Open the rite, read the riddle and walk there. Within 120 m the device will call."),
+            if (here != null) tr("Начать обряд", "Start the rite") else tr("Открыть обряд", "Open the rite"),
+        ) { onOpen(next) }
+        find != null && fix != null -> card(tr("СЮЖЕТ", "STORY"), find.first.title.of(ru), fix.at.dist(find.second), fix.at.bearing(find.second), find.first.hint.of(ru), null) {}
+        traces.isNotEmpty() -> card(tr("СЕЙЧАС", "NOW"), tr("Все рядом спят", "Everyone nearby is asleep"), null, null,
+            tr("Эфир оживает в сумерках и ночью, а странники приходят с погодой. Загляни позже.", "The air wakes at dusk and at night; wanderers come with the weather. Look in later."), null) {}
+        else -> Unit
+    }
+}
+
+/** A place's name as a row shows it. */
+@Composable
+private fun placeTitle(t: Trace, ru: Boolean) =
+    if (t.creature.tier == Tier.LEGEND) tr("Точка слияния", "Confluence") else t.place.habitat.name(ru).let { if (t.place.name.isNotBlank()) "$it · ${t.place.name}" else it }
+
+/** Distance and the way there: an arrow (turned with the phone when there's a compass), metres, side of the world. */
+@Composable
+fun Where(dist: Double, bearing: Double, heading: Float?, ru: Boolean, big: Boolean = false) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Arrow((bearing - (heading ?: 0f)).toFloat(), Modifier.size(if (big) 18.dp else 14.dp))
+        Spacer(Modifier.width(6.dp))
+        T(Words.dist(dist, ru), if (big) Ty.head else Ty.body)
+        Spacer(Modifier.width(6.dp))
+        T(Geo.side(bearing, ru) + (heading?.let { " · " + Words.rel(bearing, it.toDouble(), ru) } ?: ""), Ty.small)
+    }
+}
+
+/** What the marks on the dial mean. */
+@Composable
+private fun Legend(story: Boolean, round: Boolean) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+        @Composable
+        fun item(label: String, draw: androidx.compose.ui.graphics.drawscope.DrawScope.() -> Unit) {
+            Canvas(Modifier.size(10.dp), onDraw = draw)
+            Spacer(Modifier.width(4.dp))
+            T(label, Ty.small)
+            Spacer(Modifier.width(12.dp))
+        }
+        val ink = C.ink; val red = C.red
+        item(tr("след", "trace")) { drawRect(ink, Offset(size.width * .2f, size.height * .2f), Size(size.width * .6f, size.height * .6f)) }
+        item(tr("рядом", "near")) { drawRect(red, Offset(size.width * .1f, size.height * .1f), Size(size.width * .8f, size.height * .8f)) }
+        if (story) item(tr("сюжет", "story")) {
+            val p = androidx.compose.ui.graphics.Path().apply { moveTo(size.width / 2, 0f); lineTo(size.width, size.height / 2); lineTo(size.width / 2, size.height); lineTo(0f, size.height / 2); close() }
+            drawPath(p, red)
+        }
+        if (round) item(tr("обход", "round")) { drawRect(ink, Offset.Zero, size, style = Stroke(2.dp.toPx())) }
     }
 }
 
@@ -216,7 +299,7 @@ private fun WeekCard(state: GameState, fix: Fix?, now: Long, ru: Boolean) {
     val done = stops.count { it.done }
     Column(Modifier.fillMaxWidth().padding(bottom = 6.dp).border(2.dp, C.ink).padding(horizontal = 8.dp, vertical = 7.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            T(tr("ОБХОД НЕДЕЛИ · $done/${stops.size}", "ROUND OF THE WEEK · $done/${stops.size}"), Ty.small.copy(color = C.red), Modifier.weight(1f))
+            T(tr("Пройдено $done из ${stops.size}", "$done of ${stops.size} walked"), Ty.body, Modifier.weight(1f))
             val left = app.fieldscan.domain.Weekly.daysLeft(now)
             T(tr("ещё $left ${Words.plural(left, "день", "дня", "дней")}", "$left ${if (left == 1) "day" else "days"} left"), Ty.small)
         }
@@ -240,52 +323,70 @@ private fun WeekCard(state: GameState, fix: Fix?, now: Long, ru: Boolean) {
 
 /** A story find in the list: where it is and what the journal says to look for. */
 @Composable
-private fun FindRow(f: app.fieldscan.domain.Find, at: app.fieldscan.domain.Geo, fix: Fix?, dark: Boolean, ru: Boolean) {
-    Column(Modifier.fillMaxWidth().padding(bottom = 6.dp).border(3.dp, C.red).padding(horizontal = 8.dp, vertical = 7.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Tag(tr("сюжет", "story"), red = true)
-            Spacer(Modifier.width(6.dp))
-            T(f.title.of(ru), Ty.body, Modifier.weight(1f))
+private fun FindRow(f: app.fieldscan.domain.Find, at: app.fieldscan.domain.Geo, fix: Fix?, heading: Float?, dark: Boolean, ru: Boolean) {
+    // dashed: it isn't tapped, it's walked to; the device notices by itself
+    Frame(Modifier.padding(bottom = 6.dp), dashed = true, red = true) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Diamond()
+                Spacer(Modifier.width(6.dp))
+                T(f.title.of(ru), Ty.body, Modifier.weight(1f))
+            }
+            fix?.at?.let { Where(it.dist(at), it.bearing(at), heading, ru) }
+            if (f.night && !dark) T(tr("откликнется только после заката", "answers only after sunset"), Ty.small.copy(color = C.red))
+            T(f.hint.of(ru), Ty.small.copy(color = C.ink))
+            T(tr("Дойди до места — прибор отметит сам.", "Walk there: the device will notice by itself."), Ty.small)
         }
-        val where = fix?.at?.let { Words.dist(it.dist(at), ru) + " · " + Geo.side(it.bearing(at), ru) } ?: "?"
-        T(where + if (f.night && !dark) tr(" · откликнется только после заката", " · answers only after sunset") else "", Ty.small)
-        T(f.hint.of(ru), Ty.small.copy(color = C.ink))
+    }
+}
+
+/** The story's mark, as on the dial. */
+@Composable
+private fun Diamond() {
+    val red = C.red
+    Canvas(Modifier.size(12.dp)) {
+        val p = androidx.compose.ui.graphics.Path().apply { moveTo(size.width / 2, 0f); lineTo(size.width, size.height / 2); lineTo(size.width / 2, size.height); lineTo(0f, size.height / 2); close() }
+        drawPath(p, red)
     }
 }
 
 @Composable
-private fun TraceRow(t: Trace, ru: Boolean, now: Long, heading: Float?, lead: Boolean = false, onClick: () -> Unit) {
+private fun TraceRow(t: Trace, ru: Boolean, heading: Float?, lead: Boolean = false, onClick: () -> Unit) {
     val hot = t.strength >= 4 && t.open && !t.caught
+    val here = t.open && !t.caught && t.dist <= NEAR
+    // asleep or already caught: drawn quieter, so the awake ones stand out
+    val quiet = !t.open || t.caught
     Row(
-        Modifier.fillMaxWidth().padding(bottom = 6.dp).border(if (lead) 3.dp else 2.dp, if (lead) C.red else C.ink).tap(onClick = onClick).padding(horizontal = 8.dp, vertical = 7.dp),
+        Modifier.fillMaxWidth().padding(bottom = 6.dp).border(if (lead || here) 3.dp else 2.dp, if (lead || here) C.red else if (quiet) C.paperD else C.ink)
+            .tap(onClick = onClick).padding(horizontal = 8.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(38.dp).background(if (hot) C.red else C.paper).border(2.dp, if (hot) C.red else C.ink), contentAlignment = Alignment.Center) {
-            T(t.creature.habitat.glyph.takeIf { t.creature.tier != Tier.HOMELY } ?: "⌂", Ty.head.copy(color = if (hot) C.paper else C.ink))
+        Box(Modifier.size(38.dp).background(if (hot) C.red else C.paper).border(2.dp, if (hot) C.red else if (quiet) C.paperD else C.ink), contentAlignment = Alignment.Center) {
+            T(t.creature.habitat.glyph.takeIf { t.creature.tier != Tier.HOMELY } ?: "⌂", Ty.head.copy(color = if (hot) C.paper else if (quiet) C.muted else C.ink))
         }
         Spacer(Modifier.width(9.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val title = if (t.creature.tier == Tier.LEGEND) tr("Точка слияния", "Confluence") else t.place.habitat.name(ru).let { if (t.place.name.isNotBlank() && it.length < 12) "$it · ${t.place.name}" else it }
-                T(title, Ty.body, Modifier.weight(1f, fill = false))
+                T(placeTitle(t, ru), Ty.body.copy(color = if (quiet) C.muted else C.ink), Modifier.weight(1f, fill = false), lines = 1)
                 if (t.creature.tier != Tier.DWELLER) { Spacer(Modifier.width(4.dp)); Tag(Words.tier(t.creature.tier, ru), red = t.creature.tier != Tier.HOMELY) }
-                if (t.caught) { Spacer(Modifier.width(4.dp)); Tag(tr("уже в бестиарии", "caught")) }
                 if (lead) LeadMark()
             }
-            val where = Words.dist(t.dist, ru) + " · " + Geo.side(t.bearing, ru) + (heading?.let { " · " + Words.rel(t.bearing, it.toDouble(), ru) } ?: "")
-            val tail = if (!t.open) tr("спит", "asleep") else tr("след: ", "trace: ") + t.creature.hint.of(ru)
-            T("$where · $tail", Ty.small)
-            // what can be done with this trace right now
+            Where(t.dist, t.bearing, heading, ru)
+            // what's heard: the creature's own clue, one line
+            if (t.open && !t.caught) T("«" + t.creature.hint.of(ru) + "»", Ty.small, lines = 1)
+            // only what differs from the usual is said: you're there, it sleeps, it's caught
             val window = t.creature.conds.filterIsInstance<app.fieldscan.domain.Cond.Window>().firstOrNull()
-            val (what, red) = when {
-                !t.open -> (if (window != null) tr("спит · приходи ", "asleep · come ") + Words.parts(window.parts, ru) else tr("спит · ждёт своей погоды", "asleep · waits for its weather")) to false
-                t.dist <= NEAR -> tr("ты рядом · нажми и лови", "you're here · tap and catch") to true
-                else -> tr("можно ловить · иди к месту, нажми — узнаешь как", "catchable · walk there, tap to see how") to false
+            when {
+                t.caught -> T(tr("уже в бестиарии", "already caught"), Ty.small)
+                !t.open -> T(if (window != null) tr("спит · приходи ", "asleep · come ") + Words.parts(window.parts, ru) else tr("спит · ждёт своей погоды", "asleep · waits for its weather"), Ty.small)
+                here -> T(tr("ты на месте · нажми и лови", "you're there · tap and catch"), Ty.small.copy(color = C.red))
             }
-            T(what, Ty.small.copy(color = if (red) C.red else C.ink))
         }
         Spacer(Modifier.width(6.dp))
-        Signal(t.strength)
+        Column(horizontalAlignment = Alignment.End) {
+            Signal(t.strength)
+            Chevron()
+        }
     }
 }
 

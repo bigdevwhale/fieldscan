@@ -6,6 +6,24 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [0.12.0]
+
+- The air opens with what to do now: the nearest awake trace (or "you're there") and a button for its rite. Below it, sections: traces nearby, the story, the round of the week. The title stays put while the list scrolls.
+- Traces show an arrow pointing the way and the distance in large type; the clue fits one line; a status line appears only when a trace sleeps, is caught or you're there. Asleep and caught traces are paler, and rows that open something have a «›».
+- A legend under the radar for its marks: trace, near, story, round. One short line for the scale and the compass mode.
+- The buttons at the bottom have icons and a clearly lit current one. Scanner is now Air, Rumours is now Journal. A red mark shows where something waits: a task in the journal; in Device, parts for an attachment, full memory or frames going bad.
+- The status line shows charge and memory as numbers (memory turns red when frames wear or it's full); the clock is gone, the phone already has one.
+- The episode's task lives in the journal; the air only links to it. Story finds are dashed, since they're walked to, not tapped.
+- Journal in sections: newest page, earlier pages, rumours, keepers. Bestiary: kinds in one sliding row, "caught 5 of 50", riddles in red, empty slots dashed. Rite: the way to the place with an arrow. Device: "frames are handed in at home · N m" instead of a greyed-out button; shorter texts.
+- A big way back on the rite, card and riddle screens; light text on red buttons in the dark theme.
+
+<!-- tg
+Интерфейс стал понятнее: сверху эфира — что делать сейчас и кнопка обряда, ниже разделы.
+У следов стрелка направления и крупное расстояние, спящие — бледнее.
+Нижние кнопки с иконками и красными метками; «Сканер» теперь «Эфир», «Слухи» — «Журнал».
+Архив, заряд и память читаются с первого взгляда.
+-->
+
 ## [0.11.0]
 
 - The trap eats steps: walking charges it, a catch spends the charge, and stronger creatures take more (500–700 steps for a dweller, 1500 for a wanderer, 3000 for a keeper, 6000 for the legend). The charge shows in the rite, on the air and in Device.

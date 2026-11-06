@@ -36,8 +36,9 @@ fun Modifier.tap(enabled: Boolean = true, onClick: () -> Unit): Modifier = this.
 )
 
 @Composable
-fun T(text: String, style: TextStyle = Ty.body, modifier: Modifier = Modifier, color: Color = Color.Unspecified, center: Boolean = false) =
-    Text(text, modifier, style = style, color = if (color == Color.Unspecified) style.color else color, textAlign = if (center) TextAlign.Center else null)
+fun T(text: String, style: TextStyle = Ty.body, modifier: Modifier = Modifier, color: Color = Color.Unspecified, center: Boolean = false, lines: Int = Int.MAX_VALUE) =
+    Text(text, modifier, style = style, color = if (color == Color.Unspecified) style.color else color, textAlign = if (center) TextAlign.Center else null,
+        maxLines = lines, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
 
 /** A framed box: solid, dashed or inverted. */
 @Composable
@@ -68,7 +69,8 @@ fun Btn(text: String, modifier: Modifier = Modifier, outline: Boolean = false, r
         return
     }
     val bg = when { outline -> C.paper; red -> C.red; else -> C.ink }
-    val fg = if (outline) C.ink else C.paper
+    // red always carries light text: in the dark theme the paper is dark and would sink into it
+    val fg = when { outline -> C.ink; red -> Color(0xFFF3EFE2); else -> C.paper }
     Box(
         modifier
             .fillMaxWidth()
@@ -123,6 +125,55 @@ fun QuoteBox(text: String, modifier: Modifier = Modifier) {
 
 @Composable
 fun Gap(h: Dp = 8.dp) = Spacer(Modifier.height(h))
+
+/** A dashed 2 dp outline: something not there yet. */
+fun Modifier.dashedBorder(color: Color): Modifier = this.drawBehind {
+    val w = 2.dp.toPx()
+    drawRect(color, topLeft = Offset(w / 2, w / 2), size = androidx.compose.ui.geometry.Size(size.width - w, size.height - w),
+        style = Stroke(w, pathEffect = PathEffect.dashPathEffect(floatArrayOf(7f, 6f))))
+}
+
+/** A full-width way back at the top of a screen that sits over a tab: big enough to hit with a thumb. */
+@Composable
+fun BackBar(label: String, onBack: () -> Unit) {
+    Row(Modifier.fillMaxWidth().tap(onClick = onBack).padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(26.dp).border(2.dp, C.ink), contentAlignment = Alignment.Center) { T("‹", Ty.body.copy(color = C.ink)) }
+        Spacer(Modifier.width(8.dp))
+        T(label, Ty.body)
+    }
+}
+
+/** A section's label in a long screen: red caps, a count, and a rule to the edge. */
+@Composable
+fun Section(label: String, count: Int? = null, modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth().padding(top = 10.dp, bottom = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+        T(label.uppercase() + (count?.let { " · $it" } ?: ""), Ty.small.copy(color = C.red))
+        Spacer(Modifier.width(8.dp))
+        Box(Modifier.weight(1f).height(2.dp).background(C.ink.copy(alpha = .35f)))
+    }
+}
+
+/** The mark of a row that opens something. */
+@Composable
+fun Chevron() = T("›", Ty.head.copy(color = C.ink))
+
+/** An arrow pointing the way: [deg] clockwise from the top of the screen. */
+@Composable
+fun Arrow(deg: Float, modifier: Modifier = Modifier, color: Color = C.ink) {
+    Canvas(modifier) {
+        val c = Offset(size.width / 2, size.height / 2)
+        val r = size.minDimension / 2
+        val rad = Math.toRadians(deg.toDouble())
+        fun at(a: Double, k: Float) = Offset(c.x + kotlin.math.sin(rad + a).toFloat() * r * k, c.y - kotlin.math.cos(rad + a).toFloat() * r * k)
+        val path = androidx.compose.ui.graphics.Path().apply {
+            val tip = at(0.0, .95f); moveTo(tip.x, tip.y)
+            val l = at(2.5, .8f); lineTo(l.x, l.y)
+            val m = at(Math.PI, .35f); lineTo(m.x, m.y)
+            val rr = at(-2.5, .8f); lineTo(rr.x, rr.y); close()
+        }
+        drawPath(path, color)
+    }
+}
 
 @Composable
 fun Labeled(label: String, value: String) {

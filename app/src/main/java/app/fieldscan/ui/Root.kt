@@ -128,7 +128,7 @@ fun Root(onAskLocation: () -> Unit, startTab: Tab = Tab.SCAN, startOver: Over? =
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                   androidx.compose.runtime.CompositionLocalProvider(LocalHelp provides { t: Tip -> help = t }) {
                     when (tab) {
-                        Tab.SCAN -> ScanScreen(traces, fix, tuning, state, now, finds = finds, dark = night, onDevice = { tab = Tab.DEV }, onGuideOff = { co.update { it.copy(guide = false) } }) {
+                        Tab.SCAN -> ScanScreen(traces, fix, tuning, state, now, finds = finds, dark = night, onDevice = { tab = Tab.DEV }, onJournal = { tab = Tab.RUM }, onGuideOff = { co.update { it.copy(guide = false) } }) {
                             // the demo has no real walk: it steps to the place
                             if (BuildConfig.DEMO) co.fix.value = Fix(it.place.at.offset(200.0, 45.0), 5f, now)
                             over = Over.Rite(it)
@@ -179,7 +179,13 @@ fun Root(onAskLocation: () -> Unit, startTab: Tab = Tab.SCAN, startOver: Over? =
                 }
             }
         }
-        Nav(tab, enabled = state.home != null) { tab = it; over = null }
+        // a red mark on a button: the journal has a task waiting; the device has frames going bad, no room, or parts for an attachment
+        val marks = buildSet {
+            if (Guide.stage(state) == Guide.Stage.DONE && app.fieldscan.domain.Episodes.current(state) != null && !app.fieldscan.domain.Episodes.done(state)) add(Tab.RUM)
+            val canBuy = app.fieldscan.domain.Upgrade.entries.any { u -> u !in state.upgrades && state.parts >= u.cost && (u != app.fieldscan.domain.Upgrade.MEMORY2 || app.fieldscan.domain.Upgrade.MEMORY in state.upgrades) }
+            if (canBuy || state.memoryKb >= state.capacity || state.inMemory.any { Rules.worn(it, now) >= 2 }) add(Tab.DEV)
+        }
+        Nav(tab, enabled = state.home != null, marks = marks) { tab = it; over = null }
     }
 }
 
@@ -203,34 +209,69 @@ fun StatusBar(now: Long, at: app.fieldscan.domain.Geo?, w: app.fieldscan.domain.
     val sky = when {
         w.fog -> tr("туман", "fog"); w.snow -> tr("снег", "snow"); w.rain -> tr("дождь", "rain"); else -> ""
     }
+    // the phone already shows the time: here only what the device knows, and the two numbers a walk spends
+    val worn = s.inMemory.any { Rules.worn(it, now) >= 2 }
+    val full = s.memoryKb >= s.capacity
     Column {
         Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-            T(SimpleDateFormat("HH:mm", Locale.US).format(Date(now)))
-            Spacer(Modifier.width(10.dp))
             T("${Sky.moonGlyph(now)} ${(Sky.moon(now)[1] * 100).toInt()}%")
             Spacer(Modifier.width(10.dp))
             if (w.at > 0) T(Words.temp(w.temp) + if (sky.isNotEmpty()) " $sky" else "")
             Spacer(Modifier.weight(1f))
-            T(if (ru) "ПАМ " else "MEM ", Ty.small.copy(color = C.ink))
-            MemCells(s.memoryKb, s.inMemory.filter { Rules.worn(it, now) >= 2 }.sumOf { app.fieldscan.domain.Bestiary[it.creature].kb }, s.capacity, 4.dp)
+            T(if (ru) "ЗАРЯД " else "CHARGE ", Ty.small)
+            T("${s.charge}")
+            Spacer(Modifier.width(12.dp))
+            T(if (ru) "ПАМ " else "MEM ", Ty.small)
+            T("${s.memoryKb}/${s.capacity}", Ty.body.copy(color = if (worn || full) C.red else C.ink))
         }
         Box(Modifier.fillMaxWidth().height(2.dp).background(C.ink))
     }
 }
 
+/** The four hardware buttons: an icon, a name, and a red mark when something there waits for you. */
 @Composable
-private fun Nav(tab: Tab, enabled: Boolean, onTab: (Tab) -> Unit) {
+private fun Nav(tab: Tab, enabled: Boolean, marks: Set<Tab> = emptySet(), onTab: (Tab) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        for ((t, ru, en) in listOf(Triple(Tab.SCAN, "Сканер", "Scanner"), Triple(Tab.BEST, "Бестиарий", "Bestiary"), Triple(Tab.RUM, "Слухи", "Rumours"), Triple(Tab.DEV, "Прибор", "Device"))) {
+        for ((t, ru, en) in listOf(Triple(Tab.SCAN, "Эфир", "Air"), Triple(Tab.BEST, "Бестиарий", "Bestiary"), Triple(Tab.RUM, "Журнал", "Journal"), Triple(Tab.DEV, "Прибор", "Device"))) {
             val on = t == tab
-            Column(
-                Modifier.weight(1f).clip(RoundedCornerShape(4.dp)).background(if (on) Color(0xFF4C4F49) else C.caseL)
-                    .tap(enabled) { onTab(t) }.padding(top = 7.dp, bottom = 9.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Box(Modifier.size(6.dp).background(if (on) C.red else C.caseD))
-                Spacer(Modifier.height(4.dp))
-                T(tr(ru, en), Ty.small.copy(color = if (on) Color.White else Color(0xFFB9BBB2)))
+            val fg = if (on) Color(0xFF1D1D1B) else Color(0xFFB9BBB2)
+            Box(Modifier.weight(1f)) {
+                Column(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).background(if (on) Color(0xFFE3E0D4) else C.caseL)
+                        .tap(enabled) { onTab(t) }.padding(top = 8.dp, bottom = 7.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    NavIcon(t, fg, Modifier.size(22.dp))
+                    Spacer(Modifier.height(3.dp))
+                    T(tr(ru, en), Ty.small.copy(color = fg))
+                }
+                if (t in marks && !on) Box(Modifier.align(Alignment.TopEnd).padding(5.dp).size(9.dp).background(Color(0xFFD6493F)))
+            }
+        }
+    }
+}
+
+/** Little line drawings for the buttons: a dial, a grid of frames, a book, a gear-ish box. */
+@Composable
+private fun NavIcon(t: Tab, c: Color, modifier: Modifier) {
+    Canvas(modifier) {
+        val w = size.width; val h = size.height; val s = 2.dp.toPx()
+        val stroke = androidx.compose.ui.graphics.drawscope.Stroke(s)
+        when (t) {
+            Tab.SCAN -> {
+                drawCircle(c, w * .45f, style = stroke)
+                drawCircle(c, w * .2f, style = androidx.compose.ui.graphics.drawscope.Stroke(s * .7f))
+                drawLine(c, Offset(w / 2, h / 2), Offset(w * .85f, h * .2f), s)
+            }
+            Tab.BEST -> for (i in 0..1) for (j in 0..1) drawRect(c, Offset(w * (.08f + i * .48f), h * (.08f + j * .48f)), androidx.compose.ui.geometry.Size(w * .36f, h * .36f), style = stroke)
+            Tab.RUM -> {
+                drawRect(c, Offset(w * .12f, h * .08f), androidx.compose.ui.geometry.Size(w * .76f, h * .84f), style = stroke)
+                for (k in 0..2) drawLine(c, Offset(w * .3f, h * (.32f + k * .2f)), Offset(w * .72f, h * (.32f + k * .2f)), s * .8f)
+            }
+            Tab.DEV -> {
+                drawRect(c, Offset(w * .2f, h * .08f), androidx.compose.ui.geometry.Size(w * .6f, h * .84f), style = stroke)
+                drawRect(c, Offset(w * .32f, h * .2f), androidx.compose.ui.geometry.Size(w * .36f, h * .3f))
+                drawCircle(c, w * .08f, Offset(w / 2, h * .72f))
             }
         }
     }

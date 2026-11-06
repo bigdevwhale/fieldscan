@@ -48,7 +48,8 @@ abstract class ScreensBase {
         if (fresh) app.container.reset()
         DemoSeed.apply(app.container, places, evening)
         // the manual's pages are read, except where a test wants one
-        app.container.update { it.copy(tips = Tip.entries.map { t -> t.name }.toSet()) }
+        // and the journal's pages too, so no popup covers the screen
+        app.container.update { it.copy(tips = Tip.entries.map { t -> t.name }.toSet(), pageSeen = it.story) }
     }
 
     private fun shot(name: String, content: @Composable () -> Unit) {

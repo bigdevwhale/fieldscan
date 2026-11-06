@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -52,15 +53,16 @@ fun BestiaryScreen(state: GameState, now: Long, onCard: (String) -> Unit, onRidd
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Title(tr("Бестиарий", "Bestiary"), Tip.BEST, Modifier.weight(1f))
-            T("${caught.size} / ${Bestiary.all.size}", Ty.small)
+            T(tr("поймано ", "caught ") + "${caught.size} " + tr("из", "of") + " ${Bestiary.all.size}", Ty.small)
         }
         Gap(6.dp)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        // one line of kinds that slides sideways, instead of a ragged two-line wrap
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             for (t in Tier.entries) {
                 val n = Bestiary.all.count { it.tier == t && it.id in caught }
                 val on = t == tier
-                Box(Modifier.border(2.dp, C.ink).background(if (on) C.ink else C.paper).tap { tier = t }.padding(horizontal = 6.dp, vertical = 2.dp)) {
-                    T("${t.t.of(ru)} $n", Ty.body.copy(color = if (on) C.paper else C.ink))
+                Box(Modifier.border(2.dp, C.ink).background(if (on) C.ink else C.paper).tap { tier = t }.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                    T("${t.t.of(ru)} $n", Ty.small.copy(color = if (on) C.paper else C.ink))
                 }
             }
         }
@@ -85,16 +87,16 @@ private fun Cell(cr: Creature, state: GameState, now: Long, modifier: Modifier, 
     val known = cr.id in state.known
     val num = Bestiary.all.filter { it.tier == cr.tier }.indexOf(cr) + 1
     Column(
-        modifier.border(2.dp, if (c != null || known) C.ink else C.paperD).tap(enabled = c != null || known) { if (c != null) onCard(cr.id) else onRiddle(cr.id) }.padding(3.dp),
+        modifier.then(if (c != null || known) Modifier.border(2.dp, if (c != null) C.ink else C.muted) else Modifier.dashedBorder(C.paperD)).tap(enabled = c != null || known) { if (c != null) onCard(cr.id) else onRiddle(cr.id) }.padding(3.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         when {
             c != null -> FrameImage(rememberFrame(c, now, thumb = true), square = true)
             known -> { val bmp = remember(cr.id) { Frames.unknown(cr.id).asImageBitmap() }; Image(bmp, null, Modifier.fillMaxWidth().aspectRatio(1f), contentScale = ContentScale.Crop) }
-            else -> Box(Modifier.fillMaxWidth().aspectRatio(1f), contentAlignment = Alignment.Center) { T("%03d".format(num), Ty.small.copy(color = C.paperD)) }
+            else -> Box(Modifier.fillMaxWidth().aspectRatio(1f), contentAlignment = Alignment.Center) { T("?", Ty.head.copy(color = C.paperD)) }
         }
         // always two lines high, hyphenated, so every cell in a row is the same size
-        val caption = when { c != null -> cr.name.of(ru); known -> tr("загадка", "riddle"); else -> " " }
+        val caption = when { c != null -> cr.name.of(ru); known -> tr("загадка ›", "riddle ›"); else -> "%03d".format(num) }
         // words never break: a long word makes the caption a little smaller instead
         val longest = caption.split(' ').maxOf { it.length }
         val size = when { longest <= 10 -> 14; longest <= 12 -> 12; else -> 11 }
@@ -102,7 +104,7 @@ private fun Cell(cr: Creature, state: GameState, now: Long, modifier: Modifier, 
             caption,
             Modifier.fillMaxWidth(),
             style = Ty.small.copy(
-                color = if (c != null) C.ink else C.muted, fontSize = size.sp, lineHeight = 15.sp,
+                color = when { c != null -> C.ink; known -> C.red; else -> C.paperD }, fontSize = size.sp, lineHeight = 15.sp,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             ),
             minLines = 2, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
@@ -119,7 +121,7 @@ fun CardScreen(id: String, state: GameState, now: Long, onBack: () -> Unit) {
     val img = rememberFrame(c, now, thumb = false)
     val all = state.catches.filter { it.creature == id }
     Column(Modifier.fillMaxSize().background(C.paper).verticalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = 8.dp)) {
-        T(tr("← закрыть", "← close"), Ty.small, Modifier.tap(onClick = onBack).padding(bottom = 4.dp))
+        BackBar(tr("Бестиарий", "Bestiary"), onBack)
         T(cr.name.of(ru), Ty.head)
         Row { Tag(Words.tier(cr.tier, ru)); Spacer(Modifier.width(4.dp)); Tag("${cr.kb} " + tr("КБ", "KB")); if (c.archived == null) { Spacer(Modifier.width(4.dp)); Tag(tr("в памяти", "in memory"), red = true) } }
         Gap(8.dp)
@@ -150,7 +152,7 @@ fun RiddleScreen(id: String, state: GameState, traces: List<Trace>, onBack: () -
     val bmp = remember(id) { Frames.unknown(id).asImageBitmap() }
     val near = traces.firstOrNull { it.creature.id == id }
     Column(Modifier.fillMaxSize().background(C.paper).verticalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = 8.dp)) {
-        T(tr("← закрыть", "← close"), Ty.small, Modifier.tap(onClick = onBack).padding(bottom = 4.dp))
+        BackBar(tr("Бестиарий", "Bestiary"), onBack)
         T(tr("Неизвестный", "Unknown"), Ty.head)
         Row { Tag(Words.tier(cr.tier, ru)); Spacer(Modifier.width(4.dp)); Tag(tr("не пойман", "not caught")) }
         Gap(8.dp)

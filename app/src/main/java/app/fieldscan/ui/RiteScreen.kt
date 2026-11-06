@@ -140,7 +140,7 @@ fun RiteScreen(trace: Trace, m: Moment, places: List<Place>, onBack: () -> Unit,
             .pointerInput(Unit) { awaitEachGesture { awaitFirstDown(pass = PointerEventPass.Initial, requireUnconsumed = false); lastTouch = System.currentTimeMillis() } }
             .verticalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
-        T(tr("← к эфиру", "← back to the air"), Ty.small, Modifier.tap(onClick = onBack).padding(bottom = 4.dp))
+        BackBar(tr("Эфир", "The air"), onBack)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Title(tr("Обряд", "The rite"), Tip.RITE, Modifier.weight(1f))
             Tag(trace.place.habitat.name(ru))
@@ -156,9 +156,8 @@ fun RiteScreen(trace: Trace, m: Moment, places: List<Place>, onBack: () -> Unit,
         fix?.let { f ->
             val d = f.at.dist(place.mid)
             val b = f.at.bearing(place.mid)
-            T(tr("до места ", "to the place ") + Words.dist(d, ru) + " · " + Geo.side(b, ru) +
-                (heading?.let { h -> " · " + Words.rel(b, h.toDouble(), ru) } ?: "") +
-                (if (place.name.isNotBlank()) " · ${place.name}" else ""), Ty.small)
+            T(tr("до места", "to the place") + (if (place.name.isNotBlank()) " · ${place.name}" else ""), Ty.small)
+            Where(d, b, heading, ru, big = true)
         } ?: T(tr("Ищу спутники…", "Looking for satellites…"), Ty.small)
         Gap(8.dp)
         if (cr.conds.isNotEmpty()) {
