@@ -51,8 +51,8 @@ sealed interface Step {
     data class Dark(val sec: Int) : Step
     /** Walk round the place [turns] times, counter-clockwise if [ccw]. */
     data class Circle(val turns: Int, val ccw: Boolean) : Step
-    /** Climb a staircase bottom to top without stopping. */
-    data object Climb : Step
+    /** Gain [m] metres of height without stopping (stairs, a hill, floors): measured by the barometer. */
+    data class Climb(val m: Int) : Step
     /** Stay within the place for [min] minutes (you may move about). */
     data class Wait(val min: Int) : Step
     /** Walk [m] metres; along water if [water]. */

@@ -9,6 +9,16 @@
     <!-- The district (OpenStreetMap via Overpass) and the weather (MET Norway). -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- The trail camera shoots the real place at the catch; the photo stays on the phone. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- "A new journal page", by day only. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- The trap charges with steps: the phone's own step counter… -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-feature android:name="android.hardware.sensor.stepcounter" android:required="false" />
+    <!-- …or Health Connect, only if chosen in Device. -->
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-feature android:name="android.hardware.camera.flash" android:required="false" />
@@ -35,6 +45,26 @@
             </intent-filter>
         </activity>
 
+        <!-- Health Connect shows the privacy policy from here when asking to share steps. -->
+        <activity
+            android:name=".HealthPrivacy"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+            android:targetActivity=".HealthPrivacy">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
         <!-- Persists the in-app language choice on Android 12 and older. -->
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
@@ -47,6 +77,7 @@
     </application>
 
     <queries>
+        <package android:name="com.google.android.apps.healthdata" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />

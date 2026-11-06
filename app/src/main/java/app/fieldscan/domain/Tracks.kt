@@ -53,6 +53,31 @@ class ClimbTrack(private val a: Geo, private val b: Geo, private val stallMs: Lo
     fun tick(now: Long) { if (started && !done && now - lastGain > stallMs && best < .85) { started = false; stalled = true } }
 }
 
+/**
+ * Height gained without stopping, from altitudes in metres (the barometer's): counted from the lowest point
+ * since the last stop. No gain of half a metre for [stallMs] once the climb has begun, and it starts over
+ * from where you stand. Going down moves the start down with you.
+ */
+class RiseTrack(private val target: Double, private val stallMs: Long = 25_000) {
+    private var base: Double? = null
+    private var top = 0.0
+    private var lastGain = 0L
+    var gained = 0.0; private set
+    var stalled = false; private set
+    var done = false; private set
+
+    fun add(alt: Double, time: Long) {
+        if (done) return
+        val b = base
+        if (b == null || alt < b) { base = alt; top = 0.0; gained = 0.0; lastGain = time; return }
+        val g = alt - b
+        if (g > top + .5) { top = g; lastGain = time; stalled = false }
+        gained = maxOf(0.0, g)
+        if (top >= target) { done = true; return }
+        if (top >= 1.0 && time - lastGain > stallMs) { base = alt; top = 0.0; gained = 0.0; lastGain = time; stalled = true }
+    }
+}
+
 /** Distance walked, counting only hops a walker could make (≤ 3 m/s) and, if asked, only near water. */
 class WalkTrack(private val water: List<Geo>? = null) {
     var metres = 0.0; private set

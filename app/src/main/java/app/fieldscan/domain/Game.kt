@@ -47,7 +47,41 @@ data class GameState(
     val tips: Set<String> = emptySet(),
     /** 0 follows the system, 1 light, 2 dark. */
     val theme: Int = 0,
+    /** Steps banked in the trap: walking charges it, a catch spends it. A new device comes with a little. */
+    val charge: Int = Rules.START_CHARGE,
+    /** The phone's step counter at the last reading (-1 before the first). */
+    val stepMark: Long = -1,
+    /** When the phone last booted as of that reading (ms): the counter starts from zero after a reboot. */
+    val stepBoot: Long = 0,
+    /** The epoch day Health Connect was chosen as the step source; -1 means the phone's own counter. */
+    val healthFrom: Long = -1,
+    /** Health Connect steps already banked, per epoch day (the last few days only). */
+    val healthSeen: Map<Long, Long> = emptyMap(),
+    /** Every step ever banked (the charge is capped, this isn't). */
+    val walked: Long = 0,
+    /** Journal pages open; when the last opened, and the catches and steps at that moment. */
+    val story: Int = 0,
+    val pageAt: Long = 0,
+    val pageCatches: Int = 0,
+    val pageWalked: Long = 0,
+    /** Journal pages already shown to the observer (the rest are announced). */
+    val pageSeen: Int = 0,
+    /** The first round's guide is on (it ends by itself after two catches, or with its ×). */
+    val guide: Boolean = true,
+    /** Story finds made out in the street. */
+    val finds: Set<String> = emptySet(),
+    /** Where each open find was pinned (chosen once). */
+    val findAt: Map<String, Geo> = emptyMap(),
+    /** Episode tasks done, by page index. */
+    val tasks: Set<Int> = emptySet(),
+    /** Different creatures caught when the newest page opened (for "catch someone new"). */
+    val pageKinds: Int = 0,
+    /** The week of the round in [stops], and whether its reward is given. */
+    val week: Long = -1,
+    val stops: List<Stop> = emptyList(),
+    val weekPaid: Boolean = false,
 ) {
+    val health: Boolean get() = healthFrom >= 0
     val caughtIds: Set<String> get() = catches.map { it.creature }.toSet()
     val inMemory: List<Catch> get() = catches.filter { it.archived == null }
     val memoryKb: Int get() = inMemory.sumOf { Bestiary[it.creature].kb }
@@ -61,6 +95,19 @@ object Rules {
     /** Share of fitting places that stay empty: not every lamp is haunted. */
     const val EMPTY = 0.4
     const val HOME_RADIUS = 50.0
+    const val START_CHARGE = 600
+    /** The trap holds no more than this many steps. */
+    const val CHARGE_MAX = 10_000
+    /** Metres in a step, for reckoning steps from a GPS walk. */
+    const val STRIDE = 0.75
+
+    /** Steps the trap needs to hold a creature: the stronger, the more. */
+    fun pace(c: Creature): Int = when (c.tier) {
+        Tier.DWELLER, Tier.HOMELY -> 300
+        Tier.WANDERER -> 900
+        Tier.HOST -> 2200
+        Tier.LEGEND -> 4800
+    } + c.kb * 200
 
     /** 0 fresh … 4 badly worn: a frame wears a step a day while it sits in memory. */
     fun worn(c: Catch, now: Long): Int = if (c.archived != null) c.wornAtArchive else ((now - c.time) / DAY).toInt().coerceIn(0, 4)

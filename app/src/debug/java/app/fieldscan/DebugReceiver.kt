@@ -21,6 +21,9 @@ import kotlin.math.sin
  *   ... --es cmd heading --ef deg 180    (or --ef deg -1 to give the compass back)
  *   ... --es cmd tone --ef hz 440 --ei ms 5000   plays a sine through the speaker
  *   ... --es cmd real                     real GPS again
+ *   ... --es cmd charge --ei steps 5000   the trap's charge
+ *   ... --es cmd story --ei n 13               open the journal up to page n
+ *   ... --es cmd page                     the notification for the newest journal page
  */
 class DebugReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -42,6 +45,9 @@ class DebugReceiver : BroadcastReceiver() {
             "heading" -> intent.getFloatExtra("deg", -1f).let { co.headingOverride.value = if (it < 0) null else it }
             "tone" -> tone(intent.getFloatExtra("hz", 440f).toDouble(), intent.getIntExtra("ms", 5000))
             "real" -> { co.mockUntil = 0 }
+            "story" -> intent.getIntExtra("n", 0).let { n -> co.update { it.copy(story = n, pageSeen = n, pageAt = now) } }
+            "page" -> Pages.notify(context, maxOf(0, co.state.value.story - 1))
+            "charge" -> co.update { it.copy(charge = intent.getIntExtra("steps", 5000)) }
         }
         setResultData("ok fix=${co.fix.value?.at} spot=${co.riteSpot?.id}")
     }

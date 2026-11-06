@@ -34,6 +34,8 @@ data class Shot(
     val worn: Int = 0,
     val cam: Int = 7,
     val stamp: String = "03/11  03:14:22",
+    /** A real photo of the place (W × H) to grow the creature into, instead of a drawn scene. */
+    val photo: Bitmap? = null,
 )
 
 /** A rendered frame and the square around the creature (for the bestiary thumbnail). */
@@ -53,11 +55,17 @@ object TrailCam {
     fun render(s: Shot): Frame {
         val bmp = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
-        val scene = Scenes.of(s.habitat.scene, s.habitat)
+        val drawn = Scenes.of(s.habitat.scene, s.habitat)
         val rng = Rng(s.seed)
-        // sky
-        paintGradient(c, 0f, 0f, 0f, H.toFloat(), intArrayOf(gray(12), gray(29), gray(44)), floatArrayOf(0f, .7f, 1f))
-        scene.bg(c, rng)
+        val photo = s.photo
+        // in a real photo the creature stands low in the middle, where the viewfinder showed its eyes; nothing is drawn around it
+        val scene = if (photo == null) drawn else Scenes.Def(W * .5f, H - 34f, drawn.scale, { _, _ -> }, { _, _ -> })
+        if (photo != null) c.drawBitmap(infrared(photo), 0f, 0f, null)
+        else {
+            // sky
+            paintGradient(c, 0f, 0f, 0f, H.toFloat(), intArrayOf(gray(12), gray(29), gray(44)), floatArrayOf(0f, .7f, 1f))
+            scene.bg(c, rng)
+        }
         // creature
         val sk = Skeletons.of(s.body, s.seed)
         val sc = scene.scale * s.body.size * fitScale(sk, scene, s.body.size)
@@ -94,6 +102,29 @@ object TrailCam {
         val side = if (found) (max(layer.maxX - layer.minX, layer.maxY - layer.minY) * 1.15f).coerceIn(110f, H - 30f) else 200f
         val l = (cx - side / 2).coerceIn(0f, W - side); val t = (cy - side / 2).coerceIn(0f, H - 22 - side)
         return Frame(bmp, Rect(l.toInt(), t.toInt(), (l + side).toInt(), (t + side).toInt()))
+    }
+
+    /** A photo as the trail camera's IR sensor sees it: grey with a green cast, flat and a little dark. */
+    fun infrared(src: Bitmap): Bitmap {
+        val px = IntArray(W * H)
+        val b = if (src.width == W && src.height == H) src else Bitmap.createScaledBitmap(src, W, H, true)
+        b.getPixels(px, 0, W, 0, 0, W, H)
+        for (i in px.indices) {
+            val cl = px[i]
+            val l = (cl shr 16 and 255) * .3f + (cl shr 8 and 255) * .59f + (cl and 255) * .11f
+            // squeeze into the camera's range: blacks lifted, whites dimmed
+            val v = (14 + l * .68f).toInt()
+            px[i] = gray(v)
+        }
+        return Bitmap.createBitmap(px, W, H, Bitmap.Config.ARGB_8888)
+    }
+
+    /** The middle of [src] at the frame's 4:3, scaled to W × H. */
+    fun crop(src: Bitmap): Bitmap {
+        val k = minOf(src.width / W.toFloat(), src.height / H.toFloat())
+        val w = (W * k).toInt(); val h = (H * k).toInt()
+        val part = Bitmap.createBitmap(src, (src.width - w) / 2, (src.height - h) / 2, w, h)
+        return Bitmap.createScaledBitmap(part, W, H, true)
     }
 
     /** Keeps tall creatures inside the frame. */

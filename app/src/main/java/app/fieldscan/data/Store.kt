@@ -6,6 +6,7 @@ import app.fieldscan.domain.Daypart
 import app.fieldscan.domain.GameState
 import app.fieldscan.domain.Geo
 import app.fieldscan.domain.Item
+import app.fieldscan.domain.Rules
 import app.fieldscan.domain.Upgrade
 import org.json.JSONArray
 import org.json.JSONObject
@@ -49,6 +50,14 @@ class Store(context: Context) {
             put("nightOff", s.nightOff); put("shy", s.shy); put("sound", s.sound); put("started", s.started)
             put("tips", JSONArray(s.tips.toList()))
             put("theme", s.theme)
+            put("charge", s.charge); put("stepMark", s.stepMark); put("stepBoot", s.stepBoot); put("healthFrom", s.healthFrom)
+            put("walked", s.walked); put("story", s.story); put("pageAt", s.pageAt); put("pageCatches", s.pageCatches); put("pageWalked", s.pageWalked); put("pageSeen", s.pageSeen); put("guide", s.guide)
+            put("finds", JSONArray(s.finds.toList()))
+            put("tasks", JSONArray(s.tasks.toList())); put("pageKinds", s.pageKinds)
+            put("week", s.week); put("weekPaid", s.weekPaid)
+            put("stops", JSONArray().apply { s.stops.forEach { p -> put(JSONObject().put("id", p.id).put("h", p.habitat.name).put("y", p.at.lat).put("x", p.at.lon).put("n", p.name).put("d", p.done)) } })
+            put("findAt", JSONObject().apply { s.findAt.forEach { (k, g) -> put(k, JSONArray().put(g.lat).put(g.lon)) } })
+            put("healthSeen", JSONObject().apply { s.healthSeen.forEach { (d, n) -> put(d.toString(), n) } })
         }
 
         fun fromJson(o: JSONObject): GameState {
@@ -73,6 +82,22 @@ class Store(context: Context) {
                 started = o.optLong("started"),
                 tips = strs("tips").toSet(),
                 theme = o.optInt("theme"),
+                charge = o.optInt("charge", Rules.START_CHARGE),
+                stepMark = o.optLong("stepMark", -1),
+                stepBoot = o.optLong("stepBoot"),
+                healthFrom = o.optLong("healthFrom", -1),
+                walked = o.optLong("walked"), story = o.optInt("story"), pageAt = o.optLong("pageAt"),
+                pageCatches = o.optInt("pageCatches"), pageWalked = o.optLong("pageWalked"), pageSeen = o.optInt("pageSeen", o.optInt("story")), guide = o.optBoolean("guide", true),
+                finds = strs("finds").toSet(),
+                tasks = o.optJSONArray("tasks")?.let { a -> (0 until a.length()).map { a.getInt(it) }.toSet() } ?: emptySet(),
+                pageKinds = o.optInt("pageKinds"),
+                week = o.optLong("week", -1), weekPaid = o.optBoolean("weekPaid"),
+                stops = o.optJSONArray("stops")?.let { a -> (0 until a.length()).mapNotNull { i ->
+                    val p = a.getJSONObject(i)
+                    runCatching { app.fieldscan.domain.Stop(p.getString("id"), app.fieldscan.domain.Habitat.valueOf(p.getString("h")), Geo(p.getDouble("y"), p.getDouble("x")), p.optString("n"), p.optBoolean("d")) }.getOrNull()
+                } } ?: emptyList(),
+                findAt = o.optJSONObject("findAt")?.let { f -> f.keys().asSequence().associateWith { k -> f.getJSONArray(k).let { Geo(it.getDouble(0), it.getDouble(1)) } } } ?: emptyMap(),
+                healthSeen = o.optJSONObject("healthSeen")?.let { h -> h.keys().asSequence().associate { it.toLong() to h.getLong(it) } } ?: emptyMap(),
             )
         }
     }

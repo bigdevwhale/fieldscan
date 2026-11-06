@@ -28,9 +28,11 @@
 
 - **The air.** A round scanner shows traces around you: the kind of place, the distance, the direction, a scrap of signal ("…splash… under… step…") and its strength. The creature itself is never on a map.
 - **The riddle.** Each trace opens a riddle in the bestiary: where it waits and what it wants. Riddles are honest: there's always the kind of place and at least one condition.
-- **The rite.** One to four steps, each checked by the phone: stand in the middle of a span (GPS), face upstream (compass), keep still (accelerometer), sing a note (pitch only, nothing recorded), blink a letter in Morse with the torch, walk round three times anticlockwise, climb the stairs without stopping, walk along the water in fog, leave the screen alone for a minute.
+- **The rite.** One to four steps, each checked by the phone: stand in the middle of a span (GPS), face upstream (compass), keep still (accelerometer), sing a note (pitch only, nothing recorded), blink a letter in Morse with the torch, walk round three times anticlockwise, climb a few metres up without stopping (barometer), walk along the water in fog, leave the screen alone for a minute.
 - **The frame.** When the rite is done, a trail camera fires: a grainy night IR frame with the camera number, the date and the time. The creature is grown from bones, torn by noise, furred and half hidden by the scene; the hour, fog, rain, snow and frost all show in it.
+- **The trap eats steps.** Walking charges the trap; a catch spends the charge, and the stronger the creature, the more it takes: 500–700 steps for a dweller, 3000 for a keeper, 6000 for the legend. Steps come from the phone's step counter or from Health Connect (Samsung Health, Mi Fitness, Google Fit, watches and bands).
 - **Rumours.** Every catch tells about someone else, so the bestiary grows as a web, not a list.
+- **The journal.** The notes of N. Vetrova, the device's last owner, and what happened after she went to the confluence. Pages open about once a month as you walk and catch: three years of story.
 - **Memory and the archive.** The device has 16 KB. Frames in memory wear a step a day until you take them home and hand them in to the archive.
 
 ## The bestiary
@@ -49,7 +51,7 @@ The first time a screen opens, a page of the device's manual explains it; the «
 
 ## Privacy
 
-Coordinates never leave the phone. The network is used only for the map around you (OpenStreetMap through Overpass, cached for 30 days) and the weather (MET Norway, rounded to ~1 km). The microphone is used only for the "sing a note" step: the pitch is measured and nothing is recorded. No account, no ads, no analytics.
+Coordinates never leave the phone. The network is used only for the map around you (OpenStreetMap through Overpass, cached for 30 days) and the weather (MET Norway, rounded to ~1 km). The microphone is used only for the "sing a note" step: the pitch is measured and nothing is recorded. Steps are read from the phone's step counter or, if chosen, from Health Connect (daily totals only), and stay on the phone. No account, no ads, no analytics.
 
 ## Build
 

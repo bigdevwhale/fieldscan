@@ -50,6 +50,8 @@ import app.fieldscan.domain.Moment
 import app.fieldscan.domain.Rules
 import app.fieldscan.domain.Scanner
 import app.fieldscan.domain.Sky
+import app.fieldscan.domain.Find
+import app.fieldscan.domain.Finds
 import app.fieldscan.domain.Trace
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -81,16 +83,37 @@ fun Root(onAskLocation: () -> Unit, startTab: Tab = Tab.SCAN, startOver: Over? =
     var over by remember { mutableStateOf(startOver) }
     var help by remember { mutableStateOf<Tip?>(null) }
     var askExit by remember { mutableStateOf(false) }
+    /** The cold open is seen once, before the first switch-on. */
+    var introDone by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    // a notification asked for the journal
+    val asked by co.openTab.collectAsStateWithLifecycle()
+    var replay by remember { mutableStateOf(false) }
+    LaunchedEffect(asked) {
+        when (asked) { "rum" -> { tab = Tab.RUM; over = null }; "intro" -> replay = true }
+        co.openTab.value = null
+    }
+    /** Traces the "it's near" popup has already been shown for. */
+    var told by remember { mutableStateOf(setOf<String>()) }
     var now by remember { mutableLongStateOf(clock ?: System.currentTimeMillis()) }
-    LaunchedEffect(clock) { if (clock == null) while (true) { delay(15_000); now = System.currentTimeMillis() } }
+    LaunchedEffect(clock) { if (clock == null) while (true) { delay(15_000); now = System.currentTimeMillis(); co.tick() } }
 
     val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
     val dark = when (state.theme) { 1 -> false; 2 -> true; else -> systemDark }
     if (C.dark != dark) C.dark = dark
+    app.fieldscan.sense.Sfx.on = state.sound
     val moment = Moment(now, fix?.at, weather, state)
     val traces = remember(now / 15_000, fix?.at, places, hosts, state, weather) { Scanner.traces(moment, places, hosts) }
+    // the story out in the street: open finds, pinned near home, and one reached
+    LaunchedEffect(state.story, places, now / 3_600_000) { co.pinFinds() }
+    val finds = Finds.open(state).mapNotNull { f -> state.findAt[f.id]?.let { f to it } }
+    val night = Sky.dark(now, fix?.at ?: state.home ?: app.fieldscan.domain.Geo(55.75, 37.62))
+    val reached = fix?.let { f -> finds.firstOrNull { (fd, at) -> f.at.dist(at) <= Finds.REACH + minOf(f.acc.toDouble(), 25.0) && (!fd.night || night) } }?.first
     LaunchedEffect(traces) { co.know(traces.filter { !it.caught }.map { it.creature.id }) }
 
+    if ((state.home == null && !introDone && clock == null) || replay) {
+        Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color(0xFF0B0C0A)).statusBarsPadding().navigationBarsPadding()) { Intro { introDone = true; replay = false } }
+        return
+    }
     Column(Modifier.fillMaxSize().background(C.case).statusBarsPadding().navigationBarsPadding().padding(horizontal = 12.dp)) {
         Brand()
         Column(Modifier.weight(1f).fillMaxWidth().background(C.caseD).padding(5.dp).background(C.paper)) {
@@ -105,7 +128,7 @@ fun Root(onAskLocation: () -> Unit, startTab: Tab = Tab.SCAN, startOver: Over? =
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                   androidx.compose.runtime.CompositionLocalProvider(LocalHelp provides { t: Tip -> help = t }) {
                     when (tab) {
-                        Tab.SCAN -> ScanScreen(traces, fix, tuning, state, now) {
+                        Tab.SCAN -> ScanScreen(traces, fix, tuning, state, now, finds = finds, dark = night, onDevice = { tab = Tab.DEV }, onGuideOff = { co.update { it.copy(guide = false) } }) {
                             // the demo has no real walk: it steps to the place
                             if (BuildConfig.DEMO) co.fix.value = Fix(it.place.at.offset(200.0, 45.0), 5f, now)
                             over = Over.Rite(it)
@@ -135,6 +158,24 @@ fun Root(onAskLocation: () -> Unit, startTab: Tab = Tab.SCAN, startOver: Over? =
                         }
                     }
                     if (askExit) ExitConfirm(onStay = { askExit = false }) { activity?.finish() }
+                    // a trace that can be caught right now, close by: say so once, loudly
+                    // not for homelings (home is always near) and not while the first round is still at the door
+                    val near = traces.firstOrNull { it.open && !it.caught && it.dist <= NEAR && it.key !in told && it.creature.tier != app.fieldscan.domain.Tier.HOMELY }
+                        ?.takeIf { Guide.stage(state).let { g -> g != Guide.Stage.DOOR && g != Guide.Stage.ARCHIVE } }
+                        ?.takeIf { over == null && tip == null && !askExit }
+                    // a journal page opened while the device was on (the shot screen shows its own)
+                    val page = app.fieldscan.domain.Story.pages.getOrNull(state.story - 1)
+                        ?.takeIf { state.story > state.pageSeen && over !is Over.Shot && tip == null && !askExit }
+                    if (page != null) PagePopup(page, onLater = { co.update { it.copy(pageSeen = it.story) } }) {
+                        co.update { it.copy(pageSeen = it.story) }
+                        tab = Tab.RUM; over = null
+                    }
+                    if (reached != null && page == null && over == null && tip == null) FoundPopup(reached) { co.found(reached) }
+                    else if (near != null && page == null) NearPopup(near, onLater = { told = told + near.key }) {
+                        told = told + near.key
+                        tab = Tab.SCAN
+                        over = Over.Rite(near)
+                    }
                 }
             }
         }
@@ -241,6 +282,80 @@ fun ScanLine(frac: Float, modifier: Modifier = Modifier) {
 }
 
 val DEMO = BuildConfig.DEMO
+
+/** A story find reached: the scene, and the page it adds to the journal. */
+@Composable
+private fun FoundPopup(f: Find, onClose: () -> Unit) {
+    val ru = LocalRu.current
+    val ctx = LocalContext.current
+    LaunchedEffect(f.id) {
+        app.fieldscan.sense.Sfx.page()
+        runCatching { ctx.getSystemService(android.os.Vibrator::class.java)?.vibrate(android.os.VibrationEffect.createWaveform(longArrayOf(0, 300, 200, 300), -1)) }
+    }
+    Box(Modifier.fillMaxSize().background(C.scrim), contentAlignment = Alignment.Center) {
+        Column(Modifier.padding(24.dp).fillMaxWidth().background(C.paper).border(2.dp, C.red).padding(16.dp)) {
+            T(tr("НАХОДКА", "A FIND"), Ty.small.copy(color = C.red))
+            T(f.title.of(ru), Ty.head)
+            Gap(8.dp)
+            T(f.text.of(ru), Ty.body)
+            Gap(8.dp)
+            T(tr("Запись легла в журнал · +${Finds.PARTS} детали", "Written into the journal · +${Finds.PARTS} parts"), Ty.small)
+            Gap(12.dp)
+            Btn(tr("Записать", "Write it down"), red = true, onClick = onClose)
+        }
+    }
+}
+
+/** "A new journal page": it came through the air while the device was on. */
+@Composable
+private fun PagePopup(p: app.fieldscan.domain.Page, onLater: () -> Unit, onRead: () -> Unit) {
+    val ru = LocalRu.current
+    val radio = app.fieldscan.domain.Story.radio[p.title.en]
+    LaunchedEffect(p) { if (radio == null) app.fieldscan.sense.Sfx.page() }
+    Box(Modifier.fillMaxSize().background(C.scrim).tap(onClick = onLater), contentAlignment = Alignment.Center) {
+        Column(Modifier.padding(24.dp).fillMaxWidth().background(C.paper).border(2.dp, C.ink).tap { }.padding(16.dp)) {
+            T(tr("НОВАЯ СТРАНИЦА ЖУРНАЛА", "A NEW JOURNAL PAGE"), Ty.small.copy(color = C.red))
+            T(p.title.of(ru), Ty.head)
+            Gap(8.dp)
+            T(p.text.of(ru).let { if (it.length > 160) it.take(160).substringBeforeLast(' ') + "…" else it }, Ty.body)
+            // a page with an intercept plays it as it arrives
+            radio?.let { Gap(8.dp); Intercept(it.of(ru), auto = true) }
+            Gap(14.dp)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Btn(tr("Позже", "Later"), Modifier.weight(1f), outline = true, onClick = onLater)
+                Btn(tr("Читать", "Read"), Modifier.weight(1f), red = true, onClick = onRead)
+            }
+        }
+    }
+}
+
+/** "A signal close by": the trace is near and awake, the rite can start. */
+@Composable
+private fun NearPopup(t: Trace, onLater: () -> Unit, onOpen: () -> Unit) {
+    val ru = LocalRu.current
+    val ctx = LocalContext.current
+    LaunchedEffect(t.key) {
+        app.fieldscan.sense.Sfx.found()
+        runCatching {
+            ctx.getSystemService(android.os.Vibrator::class.java)?.vibrate(android.os.VibrationEffect.createWaveform(longArrayOf(0, 90, 120, 90, 120, 200), -1))
+        }
+    }
+    Box(Modifier.fillMaxSize().background(C.scrim).tap(onClick = onLater), contentAlignment = Alignment.Center) {
+        Column(Modifier.padding(24.dp).fillMaxWidth().background(C.paper).border(2.dp, C.red).tap { }.padding(16.dp)) {
+            T(tr("СИГНАЛ РЯДОМ", "A SIGNAL CLOSE BY"), Ty.small.copy(color = C.red))
+            T(t.place.habitat.name(ru) + (if (t.place.name.isNotBlank()) " · ${t.place.name}" else ""), Ty.head)
+            T(Words.dist(t.dist, ru) + " · " + app.fieldscan.domain.Geo.side(t.bearing, ru) + " · " + tr("след: ", "trace: ") + t.creature.hint.of(ru), Ty.small)
+            Gap(8.dp)
+            T(tr("Оно не спит и его можно поймать. Открой обряд: там загадка и шаги, которые нужно сделать на месте.",
+                "It's awake and can be caught. Open the rite: the riddle is there, and the steps to do on the spot."), Ty.body)
+            Gap(14.dp)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Btn(tr("Позже", "Later"), Modifier.weight(1f), outline = true, onClick = onLater)
+                Btn(tr("Открыть обряд", "Open the rite"), Modifier.weight(1f), red = true, onClick = onOpen)
+            }
+        }
+    }
+}
 
 /** "Switch the device off?" before leaving the app from the air. */
 @Composable

@@ -6,6 +6,40 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [0.11.0]
+
+- The trap eats steps: walking charges it, a catch spends the charge, and stronger creatures take more (500–700 steps for a dweller, 1500 for a wanderer, 3000 for a keeper, 6000 for the legend). The charge shows in the rite, on the air and in Device.
+- Steps from the phone's step counter or from Health Connect (Samsung Health, Mi Fitness, Zepp Life, Google Fit, watches and bands), chosen in Device; without either, steps are reckoned from the GPS walk.
+- A story: the journal of N. Vetrova, the device's last owner. 36 pages that open about once a month as you walk and catch, three years in all, and found pages for catching certain creatures. In Rumours.
+- The radar turns with the compass: the top is where you face, the dots stay put on the street. Tap the dial for north up. Traces and the rite also say ahead, right, behind or left.
+- Frames on real photos: when the rite is done, the trail camera's viewfinder opens over the phone's camera, grey-green like the IR sensor, with a pair of eyes in it; the shutter grows the creature into the real place. The photo stays on the phone; without a camera the place is drawn as before.
+- The sound of the air, all synthesised: a hiss with crackles that thickens near an awake trace, the sweep's ping on each dot, a tune-in when a trace opens, signals for a step done or broken, the shutter, a call sign for a new journal page. A switch in Device.
+- The compass works at any tilt, held flat or upright.
+- A cold open before the first switch-on, like the start of an episode: night, static, typed lines, the last frame in the old observer's memory, the title card, the three rules. Again from Device → Prologue.
+- The first round, held by the hand: the homeling at the door, the archive, then the nearest awake trace in the street; the trace meant is marked on the air. Ends by itself after two catches, or with its ×.
+- The story out in the street: six journal pages leave a find on the air, a red diamond pinned near home (the nearest stairs, bridge, bench, a bare point at night, home itself). Reaching it opens a scene, a journal entry and 2 parts.
+- Episodes: 31 journal pages come with one thing to do out in the city (a lamp after sunset, a stop at night, two kilometres from home, back to your first catch, thirty thousand steps, a story find), and the next page waits for it. The device notices by itself; +1 part; after three weeks a task can be let go.
+- Radio intercepts on nine key pages: the air, a voice drowned in it, then a message in Morse (Russian or Latin letters), decoded on screen letter by letter as it plays. A page with one plays it as it arrives.
+- The round of the week: every Monday three places of the district, 200 m to 1.5 km from home, each of a different kind, on the air as hollow squares. All three walked to give 2 parts and 1000 steps of charge.
+- Journal pages come on their own: checked every hour with the app closed, a due page opens with a notification (by day only); with the app open, a page pops up.
+- "A signal close by": within 120 m of an awake trace a popup with a buzz and a sound; every trace says whether it can be caught now; a long buzz when the trail camera is ready.
+- The climb is now height gained without stopping, by the barometer (stairs, a hill, floors); without one, up the stairs on the map by GPS.
+- Every rite step now says how the phone checks it; the stairs show a sketch with the bottom, the top and you; the companion and item conditions are explained.
+
+<!-- tg
+Ловушка теперь заряжается шагами: чем сильнее существо, тем больше надо пройти. Шаги можно брать из Health Connect.
+Появился сюжет: журнал прежней хозяйки прибора, страницы открываются примерно раз в месяц, на три года.
+Существа ловятся на настоящих фото: после обряда открывается видоискатель фотоловушки.
+В сканере появился звук эфира: шум, треск, отклик радара и сигналы обряда.
+Каждую неделю — обход из трёх мест района: дойди до всех, получи детали и заряд ловушки.
+На ключевых страницах журнала появились радиоперехваты: шум, голос и морзянка, которая расшифровывается на экране.
+Журнал стал сериалом: у страниц появились задания в городе, следующая страница ждёт их выполнения.
+Сюжет вышел на улицу: страницы журнала оставляют на радаре находки у реальных мест рядом с домом.
+Первая поимка теперь ведётся за руку: домовой у порога, архив, первый след на улице.
+Новый пролог в духе сериала и уведомление, когда открывается страница журнала.
+Радар поворачивается по компасу, а под каждым шагом обряда написано, как он работает.
+-->
+
 ## [0.10.0]
 
 - A dark theme: the screen's night mode, dark paper and light ink. System, light or dark, in Device.

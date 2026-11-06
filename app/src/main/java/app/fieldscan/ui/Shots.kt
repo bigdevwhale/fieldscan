@@ -32,8 +32,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.fieldscan.container
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.fieldscan.domain.Bestiary
 import app.fieldscan.domain.Catch
+import app.fieldscan.domain.Rules
+import app.fieldscan.domain.Story
 import app.fieldscan.render.Frames
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -93,6 +96,31 @@ fun CaptureScreen(c: Catch, now: Long, onDone: () -> Unit) {
             T(cr.name.of(ru), Ty.head, center = true)
             T(tr("запечатан · ${cr.kb} КБ · ", "sealed · ${cr.kb} KB · ") + Words.tier(cr.tier, ru), Ty.small, center = true)
             cr.gives?.let { T(tr("Отдал тебе: ", "Gave you: ") + it.t.of(ru), Ty.small.copy(color = C.red), center = true) }
+            T(tr("ловушка потратила ", "the trap spent ") + Words.steps(Rules.pace(cr), ru), Ty.small, center = true)
+            val stNow by LocalContext.current.container.state.collectAsStateWithLifecycle()
+            if (stNow.guide && stNow.caughtIds.size == 2 && stNow.catches.count { it.creature == c.creature } == 1) {
+                Gap(10.dp)
+                Frame(red = true) { Column {
+                    T(tr("ПЕРВЫЙ ОБХОД ПРОЙДЕН", "FIRST ROUND DONE"), Ty.small.copy(color = C.red))
+                    T(tr("Обход начат. Дальше — сам: слушай эфир, читай слухи, заглядывай в журнал.", "The round has begun. From here you're on your own: listen to the air, read the rumours, look into the journal."), Ty.body)
+                } }
+            }
+            val st by LocalContext.current.container.state.collectAsStateWithLifecycle()
+            // a page that opened with this catch, and a found page if this creature carries one
+            val pages = listOfNotNull(Story.pages.getOrNull(st.story - 1)?.takeIf { st.pageAt >= c.time }?.let { it.title to it.text }) +
+                Story.bonus.filter { it.after == c.creature && st.catches.count { x -> x.creature == c.creature } == 1 }.map { it.title to it.text }
+            val coSeen = LocalContext.current.container
+            if (pages.isNotEmpty()) {
+                LaunchedEffect(Unit) {
+                    coSeen.update { it.copy(pageSeen = it.story) }
+                    delay(700); app.fieldscan.sense.Sfx.page()
+                }
+                Gap(10.dp)
+                Frame(red = true) { Column {
+                    T(tr("Новая страница журнала", "A new journal page"), Ty.small.copy(color = C.red))
+                    for ((title, text) in pages) { T(title.of(ru), Ty.body); T(text.of(ru), Ty.small.copy(color = C.ink)) }
+                } }
+            }
             Gap(10.dp)
             Frame { Column { T(tr("Слух", "Rumour"), Ty.small); QuoteBox(cr.rumour.of(ru)) } }
             Gap(10.dp)

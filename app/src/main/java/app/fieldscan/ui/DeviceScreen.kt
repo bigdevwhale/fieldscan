@@ -15,7 +15,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import app.fieldscan.sense.HealthSteps
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -54,12 +63,18 @@ fun DeviceScreen(state: GameState, fix: Fix?, now: Long) {
                 if (state.inMemory.isNotEmpty()) T(state.inMemory.joinToString(", ") { Bestiary[it.creature].name.of(ru) + (Rules.worn(it, now).takeIf { w -> w > 0 }?.let { w -> " ($w/4)" } ?: "") }, Ty.small)
                 T(tr("Снимки в памяти портятся: каждый день на ступень. В архиве — навсегда.", "Frames in memory wear a step a day. In the archive, they're kept for good."), Ty.small)
                 Gap(8.dp)
+                if (Guide.stage(state) == Guide.Stage.ARCHIVE) {
+                    T(tr("↓ Первый обход: сдай кадр сюда — он сохранится навсегда.", "↓ First round: hand the frame in here, it keeps for good."), Ty.small.copy(color = C.red))
+                    Gap(4.dp)
+                }
                 Btn(
                     if (atHome) tr("Сдать в архив", "Hand in to the archive") else tr("Сдать в архив · дом ", "Hand in · home ") + (toHome?.let { Words.dist(it, ru) } ?: "?"),
                     enabled = atHome && state.inMemory.isNotEmpty(),
                 ) { co.archive() }
             }
         }
+        Gap(10.dp)
+        StepSource(state)
         Gap(10.dp)
         Row(verticalAlignment = Alignment.CenterVertically) {
             T(tr("Насадки", "Attachments"), Ty.head, Modifier.weight(1f))
@@ -83,6 +98,7 @@ fun DeviceScreen(state: GameState, fix: Fix?, now: Long) {
         T(tr("Настройки", "Settings"), Ty.head)
         Gap(4.dp)
         Toggle(tr("Ночные существа", "Night creatures"), tr("Выключи — и ночные следы пропадут из эфира.", "Off: night-only traces disappear from the air."), !state.nightOff) { co.update { it.copy(nightOff = !it.nightOff) } }
+        Toggle(tr("Звук эфира", "Sound of the air"), tr("Шум эфира, отклик радара и сигналы обряда.", "The air's hiss, the radar's pings and the rite's signals."), state.sound) { co.update { it.copy(sound = !it.sound) } }
         Toggle(tr("Тихий вариант", "Quiet way"), tr("Вместо пения — замереть на 20 секунд.", "Instead of singing, keep still for 20 seconds."), state.shy) { co.update { it.copy(shy = !it.shy) } }
         Gap(6.dp)
         T(tr("Тема", "Theme"), Ty.body)
@@ -106,6 +122,8 @@ fun DeviceScreen(state: GameState, fix: Fix?, now: Long) {
         }
         Gap(10.dp)
         if (fix != null) Btn(tr("Перенести архив сюда", "Move the archive here"), outline = true) { co.setHome(fix.at) }
+        Gap(6.dp)
+        Btn(tr("Пролог", "Prologue"), outline = true) { co.openTab.value = "intro" }
         Gap(12.dp)
         T(tr("Сообщество", "Community"), Ty.head)
         Gap(4.dp)
@@ -121,6 +139,80 @@ fun DeviceScreen(state: GameState, fix: Fix?, now: Long) {
         }.padding(vertical = 7.dp))
         Gap(12.dp)
         T(tr("Карта © участники OpenStreetMap (ODbL). Погода — MET Norway. Шрифт m6x11 — Daniel Linssen.", "Map © OpenStreetMap contributors (ODbL). Weather by MET Norway. Font m6x11 by Daniel Linssen."), Ty.small)
+    }
+}
+
+/** The trap's charge and where the steps come from: the phone's own counter, or Health Connect. */
+@Composable
+private fun StepSource(state: GameState) {
+    val ru = LocalRu.current
+    val ctx = LocalContext.current
+    val co = ctx.container
+    val health = state.health
+    // null while asking Health Connect whether reading is still allowed
+    var allowed by remember { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(health) { allowed = co.healthSteps.allowed() }
+    var note by remember { mutableStateOf<String?>(null) }
+    val denied = tr("Health Connect не разрешил читать шаги.", "Health Connect didn't allow reading steps.")
+    val install = tr("Сначала нужно установить или обновить Health Connect.", "Health Connect needs to be installed or updated first.")
+    val none = tr("На этом телефоне нет Health Connect.", "This phone has no Health Connect.")
+    val ask = rememberLauncherForActivityResult(HealthSteps.requestContract()) { got ->
+        allowed = HealthSteps.READ in got
+        if (allowed == true) { note = null; co.useHealth(true) } else note = denied
+    }
+    var sensorOk by remember { mutableStateOf(co.stepSensor.works) }
+    val askSensor = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { sensorOk = co.stepSensor.works; if (it) co.startSteps() }
+    fun pickHealth() {
+        when {
+            co.healthSteps.available -> ask.launch(setOf(HealthSteps.READ))
+            co.healthSteps.installable -> { note = install; runCatching { ctx.startActivity(co.healthSteps.storeIntent()) } }
+            else -> note = none
+        }
+    }
+    Frame {
+        Column {
+            Row { T(tr("Заряд ловушки", "Trap charge"), Ty.body, Modifier.weight(1f)); T("${state.charge} / ${Rules.CHARGE_MAX}") }
+            Gap(4.dp)
+            Box(Modifier.fillMaxWidth().height(12.dp).border(2.dp, C.ink)) {
+                Box(Modifier.fillMaxWidth(state.charge.toFloat() / Rules.CHARGE_MAX).height(12.dp).background(C.ink))
+            }
+            Gap(4.dp)
+            T(tr("Ловушка заряжается шагами, поимка их тратит: обитатель — 500–700, странник — 1500, хозяин — 3000, легенда — 6000. Всего пройдено: ",
+                "The trap charges with steps and a catch spends them: dweller 500–700, wanderer 1500, keeper 3000, legend 6000. Walked in all: ") +
+                Words.steps(state.walked.toInt(), ru) + ".", Ty.small)
+            Gap(8.dp)
+            T(tr("Откуда шаги", "Where steps come from"), Ty.body)
+            Gap(4.dp)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Btn(tr("Телефон", "Phone"), Modifier.weight(1f), outline = health) { note = null; co.useHealth(false) }
+                Btn("Health Connect", Modifier.weight(1f), outline = !health) { pickHealth() }
+            }
+            Gap(4.dp)
+            val status = when {
+                !health -> note ?: when {
+                    !co.stepSensor.present -> tr("Шагомера в телефоне нет — шаги считаются по GPS, пока прибор открыт.", "This phone has no step counter: steps are reckoned by GPS while the device is open.")
+                    !sensorOk -> tr("Шагомеру нужно разрешение. Пока его нет, шаги считаются по GPS.", "The step counter needs permission. Until then, steps are reckoned by GPS.")
+                    else -> tr("Шагомер телефона: считает, пока прибор открыт.", "The phone's step counter: counts while the device is open.")
+                }
+                allowed == null -> "…"
+                allowed == true -> tr("Шаги берутся из Health Connect — и те, что пройдены с закрытым прибором.", "Steps come from Health Connect, including those walked with the device closed.")
+                co.healthSteps.available -> denied
+                co.healthSteps.installable -> install
+                else -> none
+            }
+            T(status, Ty.small.copy(color = if (health && allowed == false) C.red else C.muted))
+            if (!health && co.stepSensor.present && !sensorOk && android.os.Build.VERSION.SDK_INT >= 29) {
+                Gap(4.dp)
+                Btn(tr("Разрешить шагомер", "Allow the step counter"), outline = true) { askSensor.launch(android.Manifest.permission.ACTIVITY_RECOGNITION) }
+            }
+            if (health && allowed == false && (co.healthSteps.available || co.healthSteps.installable)) {
+                Gap(4.dp)
+                Btn(if (co.healthSteps.available) tr("Разрешить в Health Connect", "Allow in Health Connect") else tr("Установить Health Connect", "Install Health Connect"), outline = true) { pickHealth() }
+            }
+            Gap(4.dp)
+            T(tr("Health Connect — общее хранилище шагов: туда их складывают Samsung Health, Mi Fitness, Zepp Life, Google Fit, часы и браслеты, и здесь будет столько же.",
+                "Health Connect is the phone's shared step store: Samsung Health, Mi Fitness, Zepp Life, Google Fit, watches and bands put their steps there, and you get the same here."), Ty.small)
+        }
     }
 }
 

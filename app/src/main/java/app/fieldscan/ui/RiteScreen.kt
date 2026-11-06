@@ -61,10 +61,12 @@ import app.fieldscan.domain.Habitat
 import app.fieldscan.domain.Moment
 import app.fieldscan.domain.Notes
 import app.fieldscan.domain.Place
+import app.fieldscan.domain.Rules
 import app.fieldscan.domain.Sky
 import app.fieldscan.domain.Step
 import app.fieldscan.domain.Trace
 import app.fieldscan.sense.PitchListener
+import app.fieldscan.sense.Sfx
 import app.fieldscan.sense.Torch
 import app.fieldscan.sense.rememberHeading
 import app.fieldscan.sense.rememberLux
@@ -100,17 +102,37 @@ fun RiteScreen(trace: Trace, m: Moment, places: List<Place>, onBack: () -> Unit,
     val ready = moment.ready(cr)
     val steps = cr.steps.map { if (it is Step.Note && state.shy) Step.Still(20) else it }
     val full = state.memoryKb + cr.kb > state.capacity
+    val pace = Rules.pace(cr)
+    val weak = state.charge < pace && !BuildConfig.DEMO
     val vib = remember { ctx.getSystemService(Vibrator::class.java) }
     val advance = rememberUpdatedState {
         runCatching { vib?.vibrate(VibrationEffect.createOneShot(60, VibrationEffect.DEFAULT_AMPLITUDE)) }
+        Sfx.step()
         index++
         RiteMemory.put(trace.key, index)
     }
-    LaunchedEffect(index, ready, full) {
-        if (index >= steps.size && ready && !full) {
-            RiteMemory.put(trace.key, 0)
-            onCaught(co.capture(cr.id, place, fix?.at ?: place.at))
-        }
+    val shoot = index >= steps.size && ready && !full && !weak
+    // the air thickens as the place comes near
+    val near = fix?.at?.dist(place.mid)
+    LaunchedEffect(near?.let { (it / 25).toInt() }) { Sfx.level = if (near == null) 1f else 1.5f + 3.5f * (1 - (near / 400.0).coerceIn(0.0, 1.0)).toFloat() }
+    DisposableEffect(Unit) { onDispose { Sfx.level = 0f } }
+    var fired by remember(trace.key) { mutableStateOf(false) }
+    fun caught(photo: android.graphics.Bitmap?) {
+        // one press, one frame: a second tap mustn't catch (and spend) twice
+        if (fired) return
+        fired = true
+        Sfx.shutter()
+        RiteMemory.put(trace.key, 0)
+        onCaught(co.capture(cr.id, place, fix?.at ?: place.at, photo))
+    }
+    // the demo and the screenshots have no camera to point: the frame is drawn at once
+    LaunchedEffect(shoot) { if (shoot && (BuildConfig.DEMO || Still.on)) caught(null) }
+    // the trail camera is ready: say so in a way felt through a pocket
+    LaunchedEffect(shoot) {
+        if (!shoot || BuildConfig.DEMO || Still.on) return@LaunchedEffect
+        delay(400)
+        Sfx.found()
+        runCatching { vib?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 400, 150, 400), -1)) }
     }
 
     Column(
@@ -128,9 +150,14 @@ fun RiteScreen(trace: Trace, m: Moment, places: List<Place>, onBack: () -> Unit,
         if (known) T(cr.name.of(ru), Ty.body.copy(color = C.red))
         QuoteBox(cr.riddle.of(ru))
         Gap(6.dp)
+        val sensed by rememberHeading(fix?.at)
+        val forced by co.headingOverride.collectAsStateWithLifecycle()
+        val heading = forced ?: sensed
         fix?.let { f ->
             val d = f.at.dist(place.mid)
-            T(tr("до места ", "to the place ") + Words.dist(d, ru) + " · " + Geo.side(f.at.bearing(place.mid), ru) +
+            val b = f.at.bearing(place.mid)
+            T(tr("до места ", "to the place ") + Words.dist(d, ru) + " · " + Geo.side(b, ru) +
+                (heading?.let { h -> " · " + Words.rel(b, h.toDouble(), ru) } ?: "") +
                 (if (place.name.isNotBlank()) " · ${place.name}" else ""), Ty.small)
         } ?: T(tr("Ищу спутники…", "Looking for satellites…"), Ty.small)
         Gap(8.dp)
@@ -144,18 +171,29 @@ fun RiteScreen(trace: Trace, m: Moment, places: List<Place>, onBack: () -> Unit,
                     Spacer(Modifier.width(8.dp))
                     T(Words.cond(c, ru) + if (!ok && c is Cond.Window) tr(" · сейчас ${Words.part(moment.part, true)}", " · now ${Words.part(moment.part, false)}") else "", Ty.body)
                 }
+                if (!ok) Words.how(c, ru)?.let { T(it, Ty.small, Modifier.padding(start = 26.dp)) }
             }
             Gap(8.dp)
         }
+        Charge(state.charge, pace, weak)
+        Gap(8.dp)
         if (!ready) Frame(dashed = true, red = true) {
             T(tr("Пока не выйдет: не все условия. Шаги откроются, когда всё сойдётся.", "It won't come yet: not all conditions are met. The steps open when they are."), Ty.small.copy(color = C.red))
         } else if (full && index >= steps.size) Frame(dashed = true, red = true) {
             T(tr("Память полна. Сдай снимки в архив дома — существо подождёт.", "Memory is full. Hand frames in at home — it will wait."), Ty.small.copy(color = C.red))
-        }
+        } else if (weak && index >= steps.size) Frame(dashed = true, red = true) {
+            T(tr("Обряд пройден, но ловушка не удержит: пройди ещё ", "The rite is done, but the trap won't hold it: walk another ") + Words.steps(pace - state.charge, ru) +
+                tr(". Шаги обряда сохранены: когда заряда хватит, откроется фотоловушка.", ". The rite's steps are kept: once the charge is enough, the trail camera opens."), Ty.small.copy(color = C.red))
+        } else if (shoot && !BuildConfig.DEMO && !Still.on) Viewfinder(
+            // the test build skips steps from home, so it doesn't hold you to the place
+            toPlace = near.takeIf { !BuildConfig.DEBUG },
+            // a rite may end a walk away from the place (walk 200 m, round it): that's still "there"
+            reach = 60.0 + minOf(fix?.acc?.toDouble() ?: 0.0, 40.0) + steps.maxOf { s -> when (s) { is Step.Walk -> s.m.toDouble(); is Step.Circle -> 70.0; else -> 0.0 } },
+        ) { caught(it) }
         Gap(6.dp)
         steps.forEachIndexed { i, s ->
             val st = when { i < index -> 2; i == index && ready -> 1; else -> 0 }
-            StepCard(i, s, st, place, fix, moment, places, lastTouch, onSkip = { if (BuildConfig.DEMO && i == index) advance.value() }) { if (i == index) advance.value() }
+            StepCard(i, s, st, place, fix, moment, places, lastTouch, onSkip = { if ((BuildConfig.DEMO || BuildConfig.DEBUG) && i == index) advance.value() }) { if (i == index) advance.value() }
         }
     }
 }
@@ -179,6 +217,8 @@ private fun StepCard(i: Int, s: Step, st: Int, place: Place, fix: Fix?, m: Momen
             T(Words.step(s, place.habitat, ru, shy), Ty.body.copy(color = if (st == 0) C.muted else C.ink), Modifier.weight(1f))
         }
         if (st == 1) {
+            Gap(4.dp)
+            T(Words.how(if (s is Step.Note && shy) Step.Still(20) else s, ru), Ty.small)
             Gap(6.dp)
             when (s) {
                 is Step.Near -> NearStep(s.m, place.at, fix, onDone)
@@ -190,12 +230,29 @@ private fun StepCard(i: Int, s: Step, st: Int, place: Place, fix: Fix?, m: Momen
                 is Step.Morse -> MorseStep(s.code, onDone)
                 is Step.Dark -> DarkStep(s.sec, m, onDone)
                 is Step.Circle -> CircleStep(s, place, fix, onDone)
-                Step.Climb -> ClimbStep(place, fix, onDone)
+                is Step.Climb -> ClimbStep(s.m, place, fix, onDone)
                 is Step.Wait -> WaitStep(s.min, place, fix, onDone)
                 is Step.Walk -> WalkStep(s, fix, places, onDone)
                 is Step.Hush -> HushStep(s.sec, lastTouch, onDone)
             }
         }
+    }
+}
+
+/** The trap's charge against what this creature needs. */
+@Composable
+private fun Charge(have: Int, need: Int, weak: Boolean) {
+    val ru = LocalRu.current
+    Column(Modifier.fillMaxWidth().border(2.dp, if (weak) C.red else C.ink).padding(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            T(tr("Заряд ловушки", "Trap charge"), Ty.body, Modifier.weight(1f))
+            T("${minOf(have, need)} / $need", Ty.body.copy(color = if (weak) C.red else C.ink))
+        }
+        Gap(4.dp)
+        Progress(have.toFloat() / need, red = weak)
+        Gap(3.dp)
+        T(if (weak) tr("Ловушка заряжается шагами: пройди ещё ", "The trap charges with steps: walk another ") + Words.steps(need - have, ru) + "."
+            else tr("Хватит. Поимка потратит ", "Enough. The catch will spend ") + Words.steps(need, ru) + tr(" из ${have}.", " of $have."), Ty.small)
     }
 }
 
@@ -310,7 +367,7 @@ private fun StillStep(sec: Int, onDone: () -> Unit) {
     LaunchedEffect(Unit) {
         while (t < sec) {
             delay(100)
-            if (motion.moving > .45f) { if (t > 1f) broke = true; t = 0f } else t += .1f
+            if (motion.moving > .45f) { if (t > 1f) { broke = true; Sfx.fail() }; t = 0f } else t += .1f
         }
         cb()
     }
@@ -377,7 +434,7 @@ private fun MorseStep(code: String, onDone: () -> Unit) {
     LaunchedEffect(lastUp) {
         if (lastUp == 0L) return@LaunchedEffect
         delay(1500)
-        if (entered == code) cb() else if (entered.isNotEmpty()) { wrong = true; entered = "" }
+        if (entered == code) cb() else if (entered.isNotEmpty()) { wrong = true; entered = ""; Sfx.fail() }
     }
     T(tr("Короткое нажатие — точка, долгое — тире. Пауза — конец буквы.", "Short press is a dot, long is a dash. A pause ends the letter."), Ty.small)
     Gap(4.dp)
@@ -423,9 +480,13 @@ private fun CircleStep(s: Step.Circle, place: Place, fix: Fix?, onDone: () -> Un
 }
 
 @Composable
-private fun ClimbStep(place: Place, fix: Fix?, onDone: () -> Unit) {
+private fun ClimbStep(m: Int, place: Place, fix: Fix?, onDone: () -> Unit) {
+    val ctx = LocalContext.current
+    if (remember { app.fieldscan.sense.hasBarometer(ctx) }) { RiseStep(m, onDone); return }
+    // no barometer: the old way, along the stairs on the map by GPS
     val a = place.a; val b = place.b
     if (a == null || b == null) { NearStep(15, place.at, fix, onDone); return }
+    val ru = LocalRu.current
     val track = remember { ClimbTrack(a, b) }
     // mirrors of the tracker for the screen
     var started by remember { mutableStateOf(false) }
@@ -435,13 +496,59 @@ private fun ClimbStep(place: Place, fix: Fix?, onDone: () -> Unit) {
     fun sync() { started = track.started; stalled = track.stalled; best = track.best.toFloat(); done = track.done }
     LaunchedEffect(fix) { fix?.let { track.add(Pt(it.at, it.acc.toDouble(), System.currentTimeMillis())); sync() } }
     LaunchedEffect(Unit) { while (true) { delay(1000); track.tick(System.currentTimeMillis()); sync() } }
+    LaunchedEffect(stalled) { if (stalled) Sfx.fail() }
+    LineSketch(a, b, fix, endRed = true)
+    Gap(4.dp)
+    val toBottom = fix?.at?.dist(a)
     T(when {
         stalled && !started -> tr("Остановился. Спустись и начни снизу.", "You stopped. Go down and start again.")
-        !started -> tr("Встань внизу лестницы.", "Stand at the bottom of the stairs.")
+        !started -> tr("Встань у нижнего конца лестницы (чёрная точка)", "Stand at the bottom end of the stairs (the black dot)") +
+            (toBottom?.let { " · " + Words.dist(it, ru) } ?: "") + "."
         else -> tr("Вверх, не останавливаясь.", "Up, without stopping.")
     }, Ty.small.copy(color = if (stalled && !started) C.red else C.muted))
     Gap(4.dp); Progress(best)
     DoneWhen(done, 300, onDone)
+}
+
+/** The climb by the barometer: metres gained without a stop. */
+@Composable
+private fun RiseStep(m: Int, onDone: () -> Unit) {
+    val ru = LocalRu.current
+    val alt by app.fieldscan.sense.rememberAltitude()
+    val track = remember { app.fieldscan.domain.RiseTrack(m.toDouble()) }
+    var gained by remember { mutableFloatStateOf(0f) }
+    var stalled by remember { mutableStateOf(false) }
+    var done by remember { mutableStateOf(false) }
+    fun feed(a: Double?) { a?.let { track.add(it, System.currentTimeMillis()) }; gained = track.gained.toFloat(); stalled = track.stalled; done = track.done }
+    LaunchedEffect(alt) { feed(alt) }
+    // the clock runs on even when the height doesn't change, so a stop is noticed
+    LaunchedEffect(Unit) { while (true) { delay(1000); feed(alt) } }
+    LaunchedEffect(stalled) { if (stalled) Sfx.fail() }
+    T(when {
+        alt == null -> tr("Барометр просыпается…", "The barometer is waking…")
+        stalled -> tr("Остановился — счёт начат заново отсюда. Вверх!", "You stopped: the count starts over from here. Up!")
+        gained < .5f -> tr("Начинай подниматься: лестница, горка, этажи — что угодно вверх.", "Start climbing: stairs, a hill, floors, anything upwards.")
+        else -> tr("Вверх, не останавливаясь: ", "Up, without stopping: ") + "%.1f".format(gained) + tr(" из $m м", " of $m m")
+    }, Ty.small.copy(color = if (stalled) C.red else C.muted))
+    Gap(4.dp); Progress(gained / m)
+    DoneWhen(done, 300, onDone)
+}
+
+/** A line place from above: [a] a black dot, [b] a red one (when [endRed]), you a square; north up. */
+@Composable
+private fun LineSketch(a: Geo, b: Geo, fix: Fix?, endRed: Boolean) {
+    val mid = Geo((a.lat + b.lat) / 2, (a.lon + b.lon) / 2)
+    Canvas(Modifier.fillMaxWidth().height(90.dp).clipToBounds().border(2.dp, C.ink)) {
+        val (ax, ay) = a.xy(mid); val (bx, by) = b.xy(mid)
+        val me = fix?.at?.xy(mid)
+        val span = maxOf(abs(ax - bx), abs(ay - by), 20.0, (me?.let { minOf(maxOf(abs(it.first), abs(it.second)) * 2, 400.0) } ?: 0.0)) * 1.3
+        val k = (minOf(size.width, size.height * 2.2f) / span).toFloat()
+        fun p(x: Double, y: Double) = Offset(size.width / 2 + x.toFloat() * k, size.height / 2 - y.toFloat() * k)
+        drawLine(C.paperD, p(ax, ay), p(bx, by), 8.dp.toPx())
+        drawCircle(C.ink, 5.dp.toPx(), p(ax, ay))
+        drawCircle(if (endRed) C.red else C.ink, 5.dp.toPx(), p(bx, by))
+        me?.let { (x, y) -> drawRect(C.ink, p(x, y) - Offset(7.5f, 7.5f), Size(15f, 15f)) }
+    }
 }
 
 @Composable

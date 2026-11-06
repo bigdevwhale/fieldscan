@@ -8,6 +8,7 @@ import androidx.test.core.app.ApplicationProvider
 import app.fieldscan.data.DemoSeed
 import app.fieldscan.data.Osm
 import app.fieldscan.domain.Moment
+import app.fieldscan.domain.Rules
 import app.fieldscan.domain.Scanner
 import app.fieldscan.render.Frames
 import app.fieldscan.ui.FieldTheme
@@ -69,6 +70,30 @@ abstract class ScreensBase {
     private fun traces() = Scanner.traces(Moment(evening, app.container.fix.value?.at, app.container.weather.value, app.container.state.value), places, app.container.hosts.value)
 
     @Test fun welcome() { app.container.reset(); app.container.fix.value = Fix(DemoSeed.HOME, 8f, evening); shot("0-welcome") { Root({}, clock = evening) } }
+    /** A new observer just home: the first round's banner and the homeling at the door. */
+    @Test fun guide() {
+        app.container.reset()
+        app.container.setHome(DemoSeed.HOME)
+        app.container.places.value = places
+        app.container.hosts.value = Rules.hosts(places)
+        app.container.fix.value = Fix(DemoSeed.HOME, 6f, evening)
+        app.container.update { it.copy(tips = Tip.entries.map { t -> t.name }.toSet(), pageSeen = 99) }
+        shot("g-guide") { Root({}, Tab.SCAN, clock = evening) }
+    }
+    /** Far into the story: finds on the air. */
+    @Test fun finds() {
+        seed()
+        app.container.update { it.copy(story = 17, pageSeen = 17) }
+        app.container.places.value = places
+        app.container.pinFinds()
+        shot("s-finds") { Root({}, Tab.SCAN, clock = evening) }
+    }
+    /** The journal with an episode's task waiting. */
+    @Test fun episode() {
+        seed()
+        app.container.update { it.copy(story = 8, pageSeen = 8, pageAt = evening - 30 * 86_400_000L) }
+        shot("e-episode") { Root({}, Tab.RUM, clock = evening) }
+    }
     @Test fun scan() { seed(); shot("1-scan") { Root({}, Tab.SCAN, clock = evening) } }
     @Test fun rite() {
         seed()

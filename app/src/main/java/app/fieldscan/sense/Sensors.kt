@@ -37,18 +37,28 @@ fun rememberHeading(at: Geo?): State<Float?> {
         val sm = ctx.getSystemService(SensorManager::class.java)
         val sensor = sm.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR) ?: sm.getDefaultSensor(Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR)
         val decl = at?.let { GeomagneticField(it.lat.toFloat(), it.lon.toFloat(), 0f, System.currentTimeMillis()).declination } ?: 0f
-        val rot = FloatArray(9); val o = FloatArray(3)
+        val rot = FloatArray(9)
         var smooth: Float? = null
         val l = object : SensorEventListener {
             override fun onSensorChanged(e: SensorEvent) {
                 SensorManager.getRotationMatrixFromVector(rot, e.values)
-                SensorManager.getOrientation(rot, o)
-                val deg = ((Math.toDegrees(o[0].toDouble()).toFloat() + decl) + 360) % 360
+                // where the phone points, at any tilt: its top edge plus its back (world x east, y north, z up).
+                // Flat, the back looks at the ground and the top gives the way; upright, the top looks at the sky
+                // and the back does; in between both agree. getOrientation's azimuth wanders once the phone is raised.
+                val fx = rot[1] - rot[2]
+                val fy = rot[4] - rot[5]
+                if (fx * fx + fy * fy < 1e-4f) return
+                val deg = ((Math.toDegrees(kotlin.math.atan2(fx.toDouble(), fy.toDouble())).toFloat() + decl) + 360) % 360
                 val prev = smooth
                 // smooth on the circle
                 smooth = if (prev == null) deg else (prev + (((deg - prev + 540) % 360) - 180) * .15f + 360) % 360
                 s.value = smooth
+                if (app.fieldscan.BuildConfig.DEBUG && e.timestamp - logged > 500_000_000L) {
+                    logged = e.timestamp
+                    android.util.Log.d("FieldHeading", "deg=${deg.toInt()} smooth=${smooth?.toInt()} top=(%.2f,%.2f,%.2f) back=(%.2f,%.2f,%.2f)".format(rot[1], rot[4], rot[7], -rot[2], -rot[5], -rot[8]))
+                }
             }
+            private var logged = 0L
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
         }
         if (sensor != null) sm.registerListener(l, sensor, SensorManager.SENSOR_DELAY_GAME)
@@ -56,6 +66,31 @@ fun rememberHeading(at: Geo?): State<Float?> {
     }
     return s
 }
+
+/** Altitude in metres from air pressure, smoothed (null without a barometer). Only its changes mean anything. */
+@Composable
+fun rememberAltitude(): State<Double?> {
+    val ctx = LocalContext.current
+    val s = remember { mutableStateOf<Double?>(null) }
+    DisposableEffect(Unit) {
+        val sm = ctx.getSystemService(SensorManager::class.java)
+        val sensor = sm.getDefaultSensor(Sensor.TYPE_PRESSURE)
+        var smooth: Double? = null
+        val l = object : SensorEventListener {
+            override fun onSensorChanged(e: SensorEvent) {
+                val alt = SensorManager.getAltitude(SensorManager.PRESSURE_STANDARD_ATMOSPHERE, e.values[0]).toDouble()
+                smooth = smooth?.let { it + (alt - it) * .12 } ?: alt
+                s.value = smooth
+            }
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+        }
+        if (sensor != null) sm.registerListener(l, sensor, SensorManager.SENSOR_DELAY_UI)
+        onDispose { sm.unregisterListener(l) }
+    }
+    return s
+}
+
+fun hasBarometer(ctx: Context) = ctx.getSystemService(SensorManager::class.java).getDefaultSensor(Sensor.TYPE_PRESSURE) != null
 
 /** How the phone is held: [moving] is a smoothed shake level (0 = perfectly still), [faceDown] when lying screen down. */
 class Motion { var moving by mutableFloatStateOf(0f); var faceDown by mutableStateOf(false) }
