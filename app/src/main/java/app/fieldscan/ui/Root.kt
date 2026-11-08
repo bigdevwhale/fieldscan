@@ -385,10 +385,8 @@ private fun NearPopup(t: Trace, onLater: () -> Unit, onOpen: () -> Unit) {
         Column(Modifier.padding(24.dp).fillMaxWidth().background(C.paper).border(2.dp, C.red).tap { }.padding(16.dp)) {
             T(tr("СИГНАЛ РЯДОМ", "A SIGNAL CLOSE BY"), Ty.small.copy(color = C.red))
             T(t.place.habitat.name(ru) + (if (t.place.name.isNotBlank()) " · ${t.place.name}" else ""), Ty.head)
-            T(Words.dist(t.dist, ru) + " · " + app.fieldscan.domain.Geo.side(t.bearing, ru) + " · " + tr("след: ", "trace: ") + t.creature.hint.of(ru), Ty.small)
-            Gap(8.dp)
-            T(tr("Оно не спит и его можно поймать. Открой обряд: там загадка и шаги, которые нужно сделать на месте.",
-                "It's awake and can be caught. Open the rite: the riddle is there, and the steps to do on the spot."), Ty.body)
+            T(Words.dist(t.dist, ru) + " · " + app.fieldscan.domain.Geo.side(t.bearing, ru), Ty.small)
+            T("«" + t.creature.hint.of(ru) + "»", Ty.body)
             Gap(14.dp)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Btn(tr("Позже", "Later"), Modifier.weight(1f), outline = true, onClick = onLater)

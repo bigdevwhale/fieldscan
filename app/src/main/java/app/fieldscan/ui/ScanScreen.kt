@@ -103,22 +103,19 @@ fun ScanScreen(traces: List<Trace>, fix: Fix?, tuning: Tuning, state: GameState,
                 Radar(traces, angle, zoom, turn, fix?.at?.let { me -> finds.map { (_, g) -> me.bearing(g) to me.dist(g) } } ?: emptyList(),
                     fix?.at?.let { me -> state.stops.filter { !it.done }.map { me.bearing(it.at) to me.dist(it.at) } } ?: emptyList(), Modifier.size(200.dp).tap { northUp = !northUp })
             }
-            Legend(finds.isNotEmpty(), state.stops.any { !it.done } && !guided)
+            Legend(finds.isNotEmpty(), state.stops.any { !it.done } && !guided, "⌀ " + Words.dist(zoom, ru) + if (heading == null || northUp) tr(" · С↑", " · N↑") else "")
             val line = when {
                 fix == null -> tr("Ищу спутники…", "Looking for satellites…")
                 tuning.busy -> tr("Настройка на эфир: карта ${tuning.done}/${tuning.total}", "Tuning in: map ${tuning.done}/${tuning.total}")
                 tuning.failed -> tr("Нет связи с картой — слышу только ближние следы", "No map connection — only nearby traces")
-                else -> tr("круг — ", "dial ") + Words.dist(zoom, ru) + " · " + when {
-                    heading == null -> tr("север вверху", "north up")
-                    northUp -> tr("север вверху · нажми — компас", "north up · tap: compass")
-                    else -> tr("по компасу · нажми — север", "by compass · tap: north")
-                }
+                else -> null
             }
-            T(line, Ty.small, Modifier.fillMaxWidth(), center = true)
+            line?.let { T(it, Ty.small, Modifier.fillMaxWidth(), center = true) }
 
             val lead = Guide.lead(state, traces)
+            val top = if (guided) null else nowTrace(traces)
             Section(tr("Следы рядом", "Traces nearby"), traces.count { it.open && !it.caught }.takeIf { traces.isNotEmpty() })
-            for (x in traces) TraceRow(x, ru, heading, lead = x.key == lead?.key) { open(x) }
+            for (x in traces) if (x.key != top?.key) TraceRow(x, ru, heading, lead = x.key == lead?.key) { open(x) }
             if (traces.isEmpty() && fix != null && !tuning.busy) Frame(dashed = true) {
                 T(tr("Рядом тихо. Попробуй дойти до воды, к мостам или дождаться заката.", "It's quiet nearby. Try walking to water or bridges, or wait for sunset."), Ty.small)
             }
@@ -149,9 +146,8 @@ fun ScanScreen(traces: List<Trace>, fix: Fix?, tuning: Tuning, state: GameState,
 /** The one thing worth doing next, on top of the air: a trace you're standing at, the nearest awake one, or a find. */
 @Composable
 private fun NowCard(traces: List<Trace>, finds: List<Pair<app.fieldscan.domain.Find, Geo>>, fix: Fix?, heading: Float?, dark: Boolean, ru: Boolean, onOpen: (Trace) -> Unit) {
-    val awake = traces.filter { it.open && !it.caught }
-    val here = awake.firstOrNull { it.dist <= NEAR }
-    val next = here ?: awake.minByOrNull { it.dist }
+    val next = nowTrace(traces)
+    val here = next?.takeIf { it.dist <= NEAR }
     val find = finds.firstOrNull { !it.first.night || dark }
     @Composable
     fun card(label: String, title: String, dist: Double?, bearing: Double?, note: String?, button: String?, onClick: () -> Unit) {
@@ -167,15 +163,20 @@ private fun NowCard(traces: List<Trace>, finds: List<Pair<app.fieldscan.domain.F
         next != null -> card(
             if (here != null) tr("ТЫ НА МЕСТЕ", "YOU'RE THERE") else tr("БЛИЖАЙШИЙ ЖИВОЙ СЛЕД", "NEAREST AWAKE TRACE"),
             placeTitle(next, ru), next.dist, next.bearing,
-            if (here != null) tr("Открой обряд и выполни шаги прямо здесь.", "Open the rite and do the steps right here.")
-            else tr("Открой обряд, прочитай загадку и иди туда. Ближе 120 м прибор позовёт сам.", "Open the rite, read the riddle and walk there. Within 120 m the device will call."),
+            "«" + next.creature.hint.of(ru) + "»",
             if (here != null) tr("Начать обряд", "Start the rite") else tr("Открыть обряд", "Open the rite"),
         ) { onOpen(next) }
         find != null && fix != null -> card(tr("СЮЖЕТ", "STORY"), find.first.title.of(ru), fix.at.dist(find.second), fix.at.bearing(find.second), find.first.hint.of(ru), null) {}
         traces.isNotEmpty() -> card(tr("СЕЙЧАС", "NOW"), tr("Все рядом спят", "Everyone nearby is asleep"), null, null,
-            tr("Эфир оживает в сумерках и ночью, а странники приходят с погодой. Загляни позже.", "The air wakes at dusk and at night; wanderers come with the weather. Look in later."), null) {}
+            tr("Загляни в сумерках или ночью.", "Look in at dusk or at night."), null) {}
         else -> Unit
     }
+}
+
+/** The trace the top card shows: one you're standing at, else the nearest awake one. */
+private fun nowTrace(traces: List<Trace>): Trace? {
+    val awake = traces.filter { it.open && !it.caught }
+    return awake.firstOrNull { it.dist <= NEAR } ?: awake.minByOrNull { it.dist }
 }
 
 /** A place's name as a row shows it. */
@@ -197,7 +198,7 @@ fun Where(dist: Double, bearing: Double, heading: Float?, ru: Boolean, big: Bool
 
 /** What the marks on the dial mean. */
 @Composable
-private fun Legend(story: Boolean, round: Boolean) {
+private fun Legend(story: Boolean, round: Boolean, scale: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
         @Composable
         fun item(label: String, draw: androidx.compose.ui.graphics.drawscope.DrawScope.() -> Unit) {
@@ -214,6 +215,7 @@ private fun Legend(story: Boolean, round: Boolean) {
             drawPath(p, red)
         }
         if (round) item(tr("обход", "round")) { drawRect(ink, Offset.Zero, size, style = Stroke(2.dp.toPx())) }
+        T(scale, Ty.small)
     }
 }
 
@@ -305,8 +307,8 @@ private fun WeekCard(state: GameState, fix: Fix?, now: Long, ru: Boolean) {
         }
         if (state.weekPaid) T(tr("Пройден ✓ · +${app.fieldscan.domain.Weekly.PARTS} детали · +${app.fieldscan.domain.Weekly.CHARGE} к заряду. Новый — в понедельник.",
             "Done ✓ · +${app.fieldscan.domain.Weekly.PARTS} parts · +${app.fieldscan.domain.Weekly.CHARGE} charge. A new one on Monday."), Ty.small.copy(color = C.ink))
-        else T(tr("Дойди до трёх мест — прибор отметит сам. Награда: ${app.fieldscan.domain.Weekly.PARTS} детали и ${app.fieldscan.domain.Weekly.CHARGE} шагов заряда.",
-            "Walk to three places: the device ticks them itself. Reward: ${app.fieldscan.domain.Weekly.PARTS} parts and ${app.fieldscan.domain.Weekly.CHARGE} steps of charge."), Ty.small)
+        else T(tr("Награда: ${app.fieldscan.domain.Weekly.PARTS} детали · ${app.fieldscan.domain.Weekly.CHARGE} шагов заряда",
+            "Reward: ${app.fieldscan.domain.Weekly.PARTS} parts · ${app.fieldscan.domain.Weekly.CHARGE} steps of charge"), Ty.small)
         Gap(4.dp)
         for (s in stops) {
             Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -335,7 +337,6 @@ private fun FindRow(f: app.fieldscan.domain.Find, at: app.fieldscan.domain.Geo, 
             fix?.at?.let { Where(it.dist(at), it.bearing(at), heading, ru) }
             if (f.night && !dark) T(tr("откликнется только после заката", "answers only after sunset"), Ty.small.copy(color = C.red))
             T(f.hint.of(ru), Ty.small.copy(color = C.ink))
-            T(tr("Дойди до места — прибор отметит сам.", "Walk there: the device will notice by itself."), Ty.small)
         }
     }
 }
@@ -372,8 +373,6 @@ private fun TraceRow(t: Trace, ru: Boolean, heading: Float?, lead: Boolean = fal
                 if (lead) LeadMark()
             }
             Where(t.dist, t.bearing, heading, ru)
-            // what's heard: the creature's own clue, one line
-            if (t.open && !t.caught) T("«" + t.creature.hint.of(ru) + "»", Ty.small, lines = 1)
             // only what differs from the usual is said: you're there, it sleeps, it's caught
             val window = t.creature.conds.filterIsInstance<app.fieldscan.domain.Cond.Window>().firstOrNull()
             when {

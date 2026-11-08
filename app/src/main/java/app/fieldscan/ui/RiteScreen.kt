@@ -156,7 +156,6 @@ fun RiteScreen(trace: Trace, m: Moment, places: List<Place>, onBack: () -> Unit,
         fix?.let { f ->
             val d = f.at.dist(place.mid)
             val b = f.at.bearing(place.mid)
-            T(tr("до места", "to the place") + (if (place.name.isNotBlank()) " · ${place.name}" else ""), Ty.small)
             Where(d, b, heading, ru, big = true)
         } ?: T(tr("Ищу спутники…", "Looking for satellites…"), Ty.small)
         Gap(8.dp)
@@ -177,12 +176,11 @@ fun RiteScreen(trace: Trace, m: Moment, places: List<Place>, onBack: () -> Unit,
         Charge(state.charge, pace, weak)
         Gap(8.dp)
         if (!ready) Frame(dashed = true, red = true) {
-            T(tr("Пока не выйдет: не все условия. Шаги откроются, когда всё сойдётся.", "It won't come yet: not all conditions are met. The steps open when they are."), Ty.small.copy(color = C.red))
+            T(tr("Не все условия — шаги закрыты.", "Not all conditions are met: the steps are shut."), Ty.small.copy(color = C.red))
         } else if (full && index >= steps.size) Frame(dashed = true, red = true) {
             T(tr("Память полна. Сдай снимки в архив дома — существо подождёт.", "Memory is full. Hand frames in at home — it will wait."), Ty.small.copy(color = C.red))
         } else if (weak && index >= steps.size) Frame(dashed = true, red = true) {
-            T(tr("Обряд пройден, но ловушка не удержит: пройди ещё ", "The rite is done, but the trap won't hold it: walk another ") + Words.steps(pace - state.charge, ru) +
-                tr(". Шаги обряда сохранены: когда заряда хватит, откроется фотоловушка.", ". The rite's steps are kept: once the charge is enough, the trail camera opens."), Ty.small.copy(color = C.red))
+            T(tr("Обряд пройден, но ловушка не удержит: пройди ещё ", "The rite is done, but the trap won't hold it: walk another ") + Words.steps(pace - state.charge, ru) + ".", Ty.small.copy(color = C.red))
         } else if (shoot && !BuildConfig.DEMO && !Still.on) Viewfinder(
             // the test build skips steps from home, so it doesn't hold you to the place
             toPlace = near.takeIf { !BuildConfig.DEBUG },
@@ -216,9 +214,10 @@ private fun StepCard(i: Int, s: Step, st: Int, place: Place, fix: Fix?, m: Momen
             T(Words.step(s, place.habitat, ru, shy), Ty.body.copy(color = if (st == 0) C.muted else C.ink), Modifier.weight(1f))
         }
         if (st == 1) {
+            var how by remember(i) { mutableStateOf(false) }
+            T((if (how) "▾ " else "▸ ") + tr("как засчитывается", "how it counts"), Ty.small, Modifier.tap { how = !how }.padding(vertical = 4.dp))
+            if (how) T(Words.how(if (s is Step.Note && shy) Step.Still(20) else s, ru), Ty.small)
             Gap(4.dp)
-            T(Words.how(if (s is Step.Note && shy) Step.Still(20) else s, ru), Ty.small)
-            Gap(6.dp)
             when (s) {
                 is Step.Near -> NearStep(s.m, place.at, fix, onDone)
                 Step.Middle -> MiddleStep(place, fix, onDone)
@@ -249,9 +248,7 @@ private fun Charge(have: Int, need: Int, weak: Boolean) {
         }
         Gap(4.dp)
         Progress(have.toFloat() / need, red = weak)
-        Gap(3.dp)
-        T(if (weak) tr("Ловушка заряжается шагами: пройди ещё ", "The trap charges with steps: walk another ") + Words.steps(need - have, ru) + "."
-            else tr("Хватит. Поимка потратит ", "Enough. The catch will spend ") + Words.steps(need, ru) + tr(" из ${have}.", " of $have."), Ty.small)
+        if (weak) { Gap(3.dp); T(tr("ещё ", "") + Words.steps(need - have, ru) + tr("", " to go"), Ty.small) }
     }
 }
 

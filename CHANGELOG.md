@@ -6,6 +6,21 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [0.12.1]
+
+- Less text on the screens: the explanations that sat under every block now live in the «?» manual, and each screen keeps only what changes.
+- Air: the top card shows the creature's whisper and a button, without instructions; the nearest trace isn't listed twice; rows are two lines; the radar's scale sits on the legend's line («⌀ 500 m · N↑»).
+- Rite: how a step is checked folds under «how it counts»; the trap's charge says only how many steps are left.
+- Device: memory lists the names once and one line «wearing: N of M»; the step source is one short line. Journal: a shorter heading, rewards without explanations.
+- The «signal close by» popup: distance, side and the whisper, no paragraph.
+
+<!-- tg
+Экраны стали чище: пояснения переехали в справку «?», на экране осталось главное.
+Ближайший след больше не дублируется в списке, строки следов короче.
+В обряде объяснение шага раскрывается по нажатию «как засчитывается».
+В Приборе память читается одной строкой: кто в памяти и сколько портится.
+-->
+
 ## [0.12.0]
 
 - The air opens with what to do now: the nearest awake trace (or "you're there") and a button for its rite. Below it, sections: traces nearby, the story, the round of the week. The title stays put while the list scrolls.

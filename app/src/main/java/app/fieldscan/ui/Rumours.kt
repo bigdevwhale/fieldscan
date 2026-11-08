@@ -38,7 +38,7 @@ private fun Journal(state: GameState, now: Long) {
     val aside = Story.bonusOpen(state).map { it.title to it.text } +
         app.fieldscan.domain.Finds.made(state).map { app.fieldscan.domain.T("Находка: " + it.title.ru, "Find: " + it.title.en) to it.text }
     var shown by remember { mutableStateOf(Story.pages.getOrNull(state.story - 1)?.title) }
-    T(tr("Записи Н. Ветровой, прежнего хозяина прибора · страниц ${state.story} из ${Story.pages.size}", "Notes of N. Vetrova, the device's last owner · page ${state.story} of ${Story.pages.size}"), Ty.small)
+    T(tr("Записи Н. Ветровой · ${state.story} из ${Story.pages.size}", "N. Vetrova's notes · ${state.story} of ${Story.pages.size}"), Ty.small)
     Section(tr("Новая страница", "Newest page"))
     @Composable
     fun entry(title: app.fieldscan.domain.T, text: app.fieldscan.domain.T) {
@@ -62,7 +62,7 @@ private fun Journal(state: GameState, now: Long) {
                 T(if (done) tr("ЗАДАНИЕ ВЫПОЛНЕНО ✓", "TASK DONE ✓") else tr("ЗАДАНИЕ ЭПИЗОДА", "THE EPISODE'S TASK"), Ty.small.copy(color = if (done) C.ink else C.red))
                 T(e.say.of(ru), Ty.body)
                 if (!done) {
-                    T(tr("Прибор отметит сам. Награда: ${Episodes.PARTS} деталь.", "The device will notice by itself. Reward: ${Episodes.PARTS} part."), Ty.small)
+                    T(tr("Награда: ${Episodes.PARTS} деталь", "Reward: ${Episodes.PARTS} part"), Ty.small)
                     if (Episodes.skippable(state, now)) {
                         Gap(6.dp)
                         Btn(tr("Не выходит — пропустить", "Can't do it: skip"), outline = true) { co.skipTask() }
@@ -98,7 +98,6 @@ fun RumoursScreen(state: GameState, now: Long) {
         Title(tr("Журнал", "Journal"), Tip.RUM)
         Journal(state, now)
         Section(tr("Слухи", "Rumours"), firsts.size.takeIf { it > 0 })
-        T(tr("Пойманные болтают. Так открываются следующие загадки.", "The caught talk. That's how the next riddles open."), Ty.small)
         Gap(6.dp)
         if (firsts.isEmpty()) Frame(dashed = true) { T(tr("Пока никто ничего не рассказал. Поймай первого.", "Nobody has told anything yet. Catch the first one."), Ty.small) }
         for (c in firsts) {

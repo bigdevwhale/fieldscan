@@ -60,9 +60,10 @@ fun DeviceScreen(state: GameState, fix: Fix?, now: Long) {
                     }
                 }
                 Gap(4.dp)
-                val wearing = tr("портится", "wearing")
-                if (state.inMemory.isNotEmpty()) T(tr("В памяти: ", "In memory: ") + state.inMemory.joinToString(", ") { Bestiary[it.creature].name.of(ru) + (Rules.worn(it, now).takeIf { w -> w > 0 }?.let { w -> " ($wearing $w/4)" } ?: "") }, Ty.small.copy(color = C.ink))
-                T(tr("Снимки в памяти портятся: каждый день на ступень. В архиве — навсегда.", "Frames in memory wear a step a day. In the archive, they're kept for good."), Ty.small)
+                // names once; how many are wearing, in one line rather than after every name
+                if (state.inMemory.isNotEmpty()) T(tr("В памяти: ", "In memory: ") + state.inMemory.joinToString(", ") { Bestiary[it.creature].name.of(ru) }, Ty.small.copy(color = C.ink))
+                val worn = state.inMemory.count { Rules.worn(it, now) > 0 }
+                if (worn > 0) T(tr("Портятся: $worn из ${state.inMemory.size}", "Wearing: $worn of ${state.inMemory.size}"), Ty.small.copy(color = C.red))
                 Gap(8.dp)
                 if (Guide.stage(state) == Guide.Stage.ARCHIVE) {
                     T(tr("↓ Первый обход: сдай кадр сюда — он сохранится навсегда.", "↓ First round: hand the frame in here, it keeps for good."), Ty.small.copy(color = C.red))
@@ -85,7 +86,6 @@ fun DeviceScreen(state: GameState, fix: Fix?, now: Long) {
             T(tr("Насадки", "Attachments"), Ty.head, Modifier.weight(1f))
             T(tr("детали: ", "parts: ") + state.parts, Ty.body.copy(color = C.red))
         }
-        T(tr("Детали дают за новых: обитатель — 1, странник и домовой — 2, хозяин — 3, легенда — 5.", "Parts come with new catches: dweller 1, wanderer and homeling 2, keeper 3, legend 5."), Ty.small)
         Gap(6.dp)
         for (u in Upgrade.entries) {
             val has = u in state.upgrades
@@ -182,9 +182,7 @@ private fun StepSource(state: GameState) {
                 Box(Modifier.fillMaxWidth(state.charge.toFloat() / Rules.CHARGE_MAX).height(12.dp).background(C.ink))
             }
             Gap(4.dp)
-            T(tr("Шаги заряжают ловушку, поимка тратит заряд. Всего пройдено: ",
-                "Steps charge the trap, a catch spends it. Walked in all: ") +
-                Words.steps(state.walked.toInt(), ru) + ".", Ty.small)
+            T(tr("всего пройдено: ", "walked in all: ") + Words.steps(state.walked.toInt(), ru), Ty.small)
             Gap(8.dp)
             T(tr("Откуда шаги", "Where steps come from"), Ty.body)
             Gap(4.dp)
@@ -195,12 +193,12 @@ private fun StepSource(state: GameState) {
             Gap(4.dp)
             val status = when {
                 !health -> note ?: when {
-                    !co.stepSensor.present -> tr("Шагомера в телефоне нет — шаги считаются по GPS, пока прибор открыт.", "This phone has no step counter: steps are reckoned by GPS while the device is open.")
-                    !sensorOk -> tr("Шагомеру нужно разрешение. Пока его нет, шаги считаются по GPS.", "The step counter needs permission. Until then, steps are reckoned by GPS.")
-                    else -> tr("Шагомер телефона: считает, пока прибор открыт.", "The phone's step counter: counts while the device is open.")
+                    !co.stepSensor.present -> tr("Шагомера нет — считаю по GPS.", "No step counter: reckoning by GPS.")
+                    !sensorOk -> tr("Шагомеру нужно разрешение, пока — по GPS.", "The step counter needs permission; GPS until then.")
+                    else -> tr("Считает, пока прибор открыт.", "Counts while the device is open.")
                 }
                 allowed == null -> "…"
-                allowed == true -> tr("Шаги берутся из Health Connect — и те, что пройдены с закрытым прибором.", "Steps come from Health Connect, including those walked with the device closed.")
+                allowed == true -> tr("Считает и с закрытым прибором.", "Counts with the device closed too.")
                 co.healthSteps.available -> denied
                 co.healthSteps.installable -> install
                 else -> none
@@ -214,9 +212,6 @@ private fun StepSource(state: GameState) {
                 Gap(4.dp)
                 Btn(if (co.healthSteps.available) tr("Разрешить в Health Connect", "Allow in Health Connect") else tr("Установить Health Connect", "Install Health Connect"), outline = true) { pickHealth() }
             }
-            Gap(4.dp)
-            T(tr("Health Connect собирает шаги из Samsung Health, Mi Fitness, Google Fit, часов и браслетов.",
-                "Health Connect gathers steps from Samsung Health, Mi Fitness, Google Fit, watches and bands."), Ty.small)
         }
     }
 }
