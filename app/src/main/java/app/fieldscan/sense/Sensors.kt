@@ -67,31 +67,6 @@ fun rememberHeading(at: Geo?): State<Float?> {
     return s
 }
 
-/** Altitude in metres from air pressure, smoothed (null without a barometer). Only its changes mean anything. */
-@Composable
-fun rememberAltitude(): State<Double?> {
-    val ctx = LocalContext.current
-    val s = remember { mutableStateOf<Double?>(null) }
-    DisposableEffect(Unit) {
-        val sm = ctx.getSystemService(SensorManager::class.java)
-        val sensor = sm.getDefaultSensor(Sensor.TYPE_PRESSURE)
-        var smooth: Double? = null
-        val l = object : SensorEventListener {
-            override fun onSensorChanged(e: SensorEvent) {
-                val alt = SensorManager.getAltitude(SensorManager.PRESSURE_STANDARD_ATMOSPHERE, e.values[0]).toDouble()
-                smooth = smooth?.let { it + (alt - it) * .12 } ?: alt
-                s.value = smooth
-            }
-            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
-        }
-        if (sensor != null) sm.registerListener(l, sensor, SensorManager.SENSOR_DELAY_UI)
-        onDispose { sm.unregisterListener(l) }
-    }
-    return s
-}
-
-fun hasBarometer(ctx: Context) = ctx.getSystemService(SensorManager::class.java).getDefaultSensor(Sensor.TYPE_PRESSURE) != null
-
 /** How the phone is held: [moving] is a smoothed shake level (0 = perfectly still), [faceDown] when lying screen down. */
 class Motion { var moving by mutableFloatStateOf(0f); var faceDown by mutableStateOf(false) }
 

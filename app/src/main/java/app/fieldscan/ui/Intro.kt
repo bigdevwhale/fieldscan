@@ -105,12 +105,13 @@ fun Intro(onDone: () -> Unit) {
     ) {
         Grain()
         Column(Modifier.fillMaxSize().padding(horizontal = 22.dp, vertical = 18.dp)) {
+            // «Skip» on the left, away from «tap ›» on the right, which is the step that matters (#1).
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (i < beats.lastIndex) T(tr("пропустить", "skip"), Ty.small.copy(color = ink.copy(alpha = .5f)), Modifier.tap { onDone() }.padding(vertical = 6.dp).padding(end = 12.dp))
+                Spacer(Modifier.weight(1f))
                 Box(Modifier.size(7.dp).background(C.red))
                 Spacer(Modifier.width(8.dp))
                 T(if (ru) "ЗАПИСЬ" else "REC", Ty.small.copy(color = C.red))
-                Spacer(Modifier.weight(1f))
-                if (i < beats.lastIndex) T(tr("пропустить »", "skip »"), Ty.small.copy(color = ink.copy(alpha = .6f)), Modifier.tap { onDone() }.padding(6.dp))
             }
             Spacer(Modifier.weight(if (beat.title) 1f else .5f))
             if (beat.title) TitleCard(ink)
@@ -127,7 +128,7 @@ fun Intro(onDone: () -> Unit) {
             Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
                 beats.indices.forEach { k -> Box(Modifier.size(width = if (k == i) 18.dp else 6.dp, height = 4.dp).background(if (k <= i) ink else ink.copy(alpha = .25f))) }
                 Spacer(Modifier.weight(1f))
-                if (!typing) T(if (i < beats.lastIndex) tr("нажми ›", "tap ›") else tr("включить прибор ›", "switch on ›"), Ty.small.copy(color = if (i < beats.lastIndex) ink.copy(alpha = .7f) else C.red))
+                if (!typing) T(if (i < beats.lastIndex) tr("дальше ›", "next ›") else tr("включить прибор ›", "switch on ›"), Ty.body.copy(fontSize = 17.sp, color = if (i < beats.lastIndex) ink else C.red), Modifier.padding(vertical = 4.dp))
             }
         }
     }

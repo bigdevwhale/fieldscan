@@ -1,9 +1,9 @@
 package app.fieldscan
 
 import app.fieldscan.domain.CircleTrack
-import app.fieldscan.domain.ClimbTrack
 import app.fieldscan.domain.Geo
 import app.fieldscan.domain.Pt
+import app.fieldscan.domain.StepsTrack
 import app.fieldscan.domain.WalkTrack
 import app.fieldscan.sense.Yin
 import org.junit.Assert.assertEquals
@@ -35,32 +35,22 @@ class TracksTest {
         assertTrue(abs(t.rounds(true)) < .1)
     }
 
-    @Test fun climbNeedsTheWholeWay() {
-        val a = at(0.0, 0.0); val b = at(0.0, 40.0)
-        val t = ClimbTrack(a, b)
-        t.add(Pt(a, 5.0, 0))
-        assertTrue(t.started)
-        t.add(Pt(at(0.0, 12.0), 5.0, 5_000))
-        assertFalse("a third of the way is not the top", t.done)
-        for ((i, n) in listOf(20.0, 28.0, 36.0, 40.0).withIndex()) t.add(Pt(at(0.0, n), 5.0, 10_000L + i * 5000))
+    @Test fun stepsCountFromTheFirstReading() {
+        val t = StepsTrack(40)
+        t.add(10_000, 0)
+        t.add(10_020, 10_000)
+        assertEquals(20, t.count); assertFalse(t.done)
+        t.add(10_040, 20_000)
         assertTrue(t.done)
     }
 
-    @Test fun climbResetsWhenStopping() {
-        val a = at(0.0, 0.0); val b = at(0.0, 40.0)
-        val t = ClimbTrack(a, b)
-        t.add(Pt(a, 5.0, 0)); t.add(Pt(at(0.0, 15.0), 5.0, 5_000))
+    @Test fun stepsStartOverAfterAStop() {
+        val t = StepsTrack(40)
+        t.add(500, 0); t.add(530, 10_000)
         t.tick(40_000)
-        assertTrue(t.stalled); assertFalse(t.started)
-        t.add(Pt(at(0.0, 40.0), 5.0, 41_000))
-        assertFalse("reaching the top after a stop doesn't count", t.done)
-    }
-
-    @Test fun climbMustStartAtTheBottom() {
-        val a = at(0.0, 0.0); val b = at(0.0, 40.0)
-        val t = ClimbTrack(a, b)
-        t.add(Pt(b, 5.0, 0))
-        assertFalse(t.started)
+        assertTrue(t.stalled); assertEquals(0, t.count)
+        t.add(545, 41_000)
+        assertEquals(15, t.count); assertFalse(t.stalled); assertFalse(t.done)
     }
 
     @Test fun walkCountsStepsNotJumps() {

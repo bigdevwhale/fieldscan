@@ -6,6 +6,17 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [0.13.0] - 2026-11-13
+
+### Changed
+- The stairs creatures no longer need a barometer: "climb N metres" became "up the stairs: N steps without stopping", counted by the phone's step counter (#2). The barometer climb didn't work on phones without one, and its GPS fallback along the stairs on the map often never counted. A stop of more than 25 seconds still starts the count over.
+- In the opening, «skip» moved to the top left, away from «next ›», which is now bigger and brighter (#1).
+
+<!-- tg
+Изменено: задания на лестницах больше не требуют барометра – теперь нужно подняться на N шагов без остановки, шаги считает шагомер.
+В заставке «пропустить» переехало влево, а «дальше» стало крупнее, чтобы их не путать.
+-->
+
 ## [0.12.1]
 
 - Less text on the screens: the explanations that sat under every block now live in the «?» manual, and each screen keeps only what changes.

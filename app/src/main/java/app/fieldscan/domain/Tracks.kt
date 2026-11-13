@@ -26,55 +26,33 @@ class CircleTrack(private val centre: Geo, private val maxR: Double = 70.0) {
 }
 
 /**
- * A climb from [a] (bottom) to [b] (top): starts at the bottom, counts the best progress, and is reset when
- * there's no progress for [stallMs]. Done when most of the way is covered and the top is reached.
+ * Steps without a stop, from the phone's step counter (a running total since reboot): counted from the first
+ * reading; no new step for [stallMs] once walking has begun, and the count starts over (#2: the barometer and
+ * GPS climbs failed on many phones).
  */
-class ClimbTrack(private val a: Geo, private val b: Geo, private val stallMs: Long = 25_000) {
-    private val len = a.dist(b).coerceAtLeast(10.0)
-    var started = false; private set
-    var stalled = false; private set
-    var best = 0.0; private set
-    var done = false; private set
-    private var lastGain = 0L
-
-    fun add(p: Pt) {
-        if (done) return
-        if (started && p.time - lastGain > stallMs && best < .85) { started = false; stalled = true }
-        if (!started) {
-            if (p.at.dist(a) <= reach(p.acc) && p.at.dist(a) < p.at.dist(b)) { started = true; stalled = false; best = 0.0; lastGain = p.time }
-            return
-        }
-        val prog = (1 - p.at.dist(b) / len).coerceIn(0.0, 1.0)
-        if (prog > best + .03) { best = prog; lastGain = p.time }
-        if (best >= .85 && p.at.dist(b) <= reach(p.acc)) done = true
-    }
-
-    /** Called on a timer too, so standing still is noticed without new fixes. */
-    fun tick(now: Long) { if (started && !done && now - lastGain > stallMs && best < .85) { started = false; stalled = true } }
-}
-
-/**
- * Height gained without stopping, from altitudes in metres (the barometer's): counted from the lowest point
- * since the last stop. No gain of half a metre for [stallMs] once the climb has begun, and it starts over
- * from where you stand. Going down moves the start down with you.
- */
-class RiseTrack(private val target: Double, private val stallMs: Long = 25_000) {
-    private var base: Double? = null
-    private var top = 0.0
-    private var lastGain = 0L
-    var gained = 0.0; private set
+class StepsTrack(private val target: Int, private val stallMs: Long = 25_000) {
+    private var base: Long? = null
+    private var last = 0L
+    private var lastAt = 0L
+    var count = 0; private set
     var stalled = false; private set
     var done = false; private set
 
-    fun add(alt: Double, time: Long) {
+    fun add(total: Long, now: Long) {
         if (done) return
         val b = base
-        if (b == null || alt < b) { base = alt; top = 0.0; gained = 0.0; lastGain = time; return }
-        val g = alt - b
-        if (g > top + .5) { top = g; lastGain = time; stalled = false }
-        gained = maxOf(0.0, g)
-        if (top >= target) { done = true; return }
-        if (top >= 1.0 && time - lastGain > stallMs) { base = alt; top = 0.0; gained = 0.0; lastGain = time; stalled = true }
+        if (b == null) { base = total; last = total; lastAt = now; return }
+        if (total > last) {
+            last = total; lastAt = now; stalled = false
+            count = (total - b).toInt()
+            if (count >= target) done = true
+        }
+    }
+
+    /** Called on a timer, so standing still is noticed without new readings. */
+    fun tick(now: Long) {
+        if (done || count == 0) return
+        if (now - lastAt > stallMs) { base = last; count = 0; stalled = true }
     }
 }
 

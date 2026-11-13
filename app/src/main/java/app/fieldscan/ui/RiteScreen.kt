@@ -51,7 +51,7 @@ import app.fieldscan.Fix
 import app.fieldscan.container
 import app.fieldscan.domain.Catch
 import app.fieldscan.domain.CircleTrack
-import app.fieldscan.domain.ClimbTrack
+import app.fieldscan.domain.StepsTrack
 import app.fieldscan.domain.Pt
 import app.fieldscan.domain.WalkTrack
 import app.fieldscan.domain.Cond
@@ -228,7 +228,7 @@ private fun StepCard(i: Int, s: Step, st: Int, place: Place, fix: Fix?, m: Momen
                 is Step.Morse -> MorseStep(s.code, onDone)
                 is Step.Dark -> DarkStep(s.sec, m, onDone)
                 is Step.Circle -> CircleStep(s, place, fix, onDone)
-                is Step.Climb -> ClimbStep(s.m, place, fix, onDone)
+                is Step.Steps -> StepsStep(s.n, onDone)
                 is Step.Wait -> WaitStep(s.min, place, fix, onDone)
                 is Step.Walk -> WalkStep(s, fix, places, onDone)
                 is Step.Hush -> HushStep(s.sec, lastTouch, onDone)
@@ -475,58 +475,34 @@ private fun CircleStep(s: Step.Circle, place: Place, fix: Fix?, onDone: () -> Un
     DoneWhen(got >= s.turns, 0, onDone)
 }
 
+/** Up the stairs by the step counter: [n] steps without a stop of more than 25 seconds. */
 @Composable
-private fun ClimbStep(m: Int, place: Place, fix: Fix?, onDone: () -> Unit) {
+private fun StepsStep(n: Int, onDone: () -> Unit) {
     val ctx = LocalContext.current
-    if (remember { app.fieldscan.sense.hasBarometer(ctx) }) { RiseStep(m, onDone); return }
-    // no barometer: the old way, along the stairs on the map by GPS
-    val a = place.a; val b = place.b
-    if (a == null || b == null) { NearStep(15, place.at, fix, onDone); return }
-    val ru = LocalRu.current
-    val track = remember { ClimbTrack(a, b) }
-    // mirrors of the tracker for the screen
-    var started by remember { mutableStateOf(false) }
+    val sensor = remember { ctx.container.stepSensor }
+    // A phone with no step counter (or no permission) can't count: the step is waived rather than blocking the rite.
+    if (!sensor.works) {
+        T(tr("Шагомер недоступен — просто поднимись по лестнице.", "No step counter here: just go up the stairs."), Ty.small.copy(color = C.muted))
+        DoneWhen(true, 2500, onDone)
+        return
+    }
+    val track = remember { StepsTrack(n) }
+    var count by remember { mutableIntStateOf(0) }
     var stalled by remember { mutableStateOf(false) }
-    var best by remember { mutableFloatStateOf(0f) }
     var done by remember { mutableStateOf(false) }
-    fun sync() { started = track.started; stalled = track.stalled; best = track.best.toFloat(); done = track.done }
-    LaunchedEffect(fix) { fix?.let { track.add(Pt(it.at, it.acc.toDouble(), System.currentTimeMillis())); sync() } }
+    fun sync() { count = track.count; stalled = track.stalled; done = track.done }
+    DisposableEffect(Unit) {
+        sensor.start { total -> track.add(total, System.currentTimeMillis()); sync() }
+        onDispose { sensor.stop() }
+    }
     LaunchedEffect(Unit) { while (true) { delay(1000); track.tick(System.currentTimeMillis()); sync() } }
     LaunchedEffect(stalled) { if (stalled) Sfx.fail() }
-    LineSketch(a, b, fix, endRed = true)
-    Gap(4.dp)
-    val toBottom = fix?.at?.dist(a)
     T(when {
-        stalled && !started -> tr("Остановился. Спустись и начни снизу.", "You stopped. Go down and start again.")
-        !started -> tr("Встань у нижнего конца лестницы (чёрная точка)", "Stand at the bottom end of the stairs (the black dot)") +
-            (toBottom?.let { " · " + Words.dist(it, ru) } ?: "") + "."
-        else -> tr("Вверх, не останавливаясь.", "Up, without stopping.")
-    }, Ty.small.copy(color = if (stalled && !started) C.red else C.muted))
-    Gap(4.dp); Progress(best)
-    DoneWhen(done, 300, onDone)
-}
-
-/** The climb by the barometer: metres gained without a stop. */
-@Composable
-private fun RiseStep(m: Int, onDone: () -> Unit) {
-    val ru = LocalRu.current
-    val alt by app.fieldscan.sense.rememberAltitude()
-    val track = remember { app.fieldscan.domain.RiseTrack(m.toDouble()) }
-    var gained by remember { mutableFloatStateOf(0f) }
-    var stalled by remember { mutableStateOf(false) }
-    var done by remember { mutableStateOf(false) }
-    fun feed(a: Double?) { a?.let { track.add(it, System.currentTimeMillis()) }; gained = track.gained.toFloat(); stalled = track.stalled; done = track.done }
-    LaunchedEffect(alt) { feed(alt) }
-    // the clock runs on even when the height doesn't change, so a stop is noticed
-    LaunchedEffect(Unit) { while (true) { delay(1000); feed(alt) } }
-    LaunchedEffect(stalled) { if (stalled) Sfx.fail() }
-    T(when {
-        alt == null -> tr("Барометр просыпается…", "The barometer is waking…")
-        stalled -> tr("Остановился — счёт начат заново отсюда. Вверх!", "You stopped: the count starts over from here. Up!")
-        gained < .5f -> tr("Начинай подниматься: лестница, горка, этажи — что угодно вверх.", "Start climbing: stairs, a hill, floors, anything upwards.")
-        else -> tr("Вверх, не останавливаясь: ", "Up, without stopping: ") + "%.1f".format(gained) + tr(" из $m м", " of $m m")
+        stalled -> tr("Остановился — счёт заново. Вверх!", "You stopped: the count starts over. Up!")
+        count == 0 -> tr("Начинай подниматься.", "Start climbing.")
+        else -> tr("Вверх, не останавливаясь: $count из $n шагов", "Up, without stopping: $count of $n steps")
     }, Ty.small.copy(color = if (stalled) C.red else C.muted))
-    Gap(4.dp); Progress(gained / m)
+    Gap(4.dp); Progress(count.toFloat() / n)
     DoneWhen(done, 300, onDone)
 }
 

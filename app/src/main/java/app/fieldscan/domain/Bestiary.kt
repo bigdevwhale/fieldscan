@@ -9,7 +9,7 @@ import app.fieldscan.domain.Daypart.DAY
 import app.fieldscan.domain.Daypart.DUSK
 import app.fieldscan.domain.Daypart.NIGHT
 import app.fieldscan.domain.Step.Circle
-import app.fieldscan.domain.Step.Climb
+import app.fieldscan.domain.Step.Steps
 import app.fieldscan.domain.Step.Dark
 import app.fieldscan.domain.Step.Face
 import app.fieldscan.domain.Step.FaceDown
@@ -103,7 +103,7 @@ object Bestiary {
             T("На перекрёстке, где сходятся пять дорог, в полночь кто-то ходит по кругу. Не туда, куда часы.", "Where five roads meet, someone walks in circles at midnight. Not the way the clock goes."),
             listOf("perek"), Body(Shape.TALL, size = 1.15f, tone = 26, fur = 0f, lean = .8f, amp = 4f, arms = 1.1f)),
         c("lest", Tier.DWELLER, "Лестничник", "Stairling", Habitat.STEPS, 2,
-            emptyList(), listOf(Near(60), Climb(5), Still(10)),
+            emptyList(), listOf(Near(60), Steps(40), Still(10)),
             T("Живёт на длинных лестницах. Ждёт наверху того, кто поднялся, ни разу не остановившись.",
                 "Lives on long stairs. Waits at the top for someone who climbed without stopping once."),
             T("…шарк… вверх… не стой…", "…scuff… up… don't stop…"),
@@ -315,7 +315,7 @@ object Bestiary {
             T("Камышник стоит в той же воде на рассвете. Он никуда не спешит.", "The Reedling stands in the same water at dawn. He's in no hurry."),
             listOf("kamysh"), Body(Shape.CRAWLER, size = .7f, tone = 72, fur = .1f, furLen = 3f, amp = 4f, eyes = 2)),
         c("stupen", Tier.DWELLER, "Ступенёк", "Stepkin", Habitat.STEPS, 1,
-            listOf(Window(setOf(DUSK, NIGHT))), listOf(Near(60), Climb(6), Hush(30)),
+            listOf(Window(setOf(DUSK, NIGHT))), listOf(Near(60), Steps(50), Hush(30)),
             T("Прячется под ступеньками длинных лестниц. Вечером поднимись наверх и полминуты не трогай экран.",
                 "Hides under the steps of long stairs. In the evening climb to the top and leave the screen alone for half a minute."),
             T("…шарк… навер…ху… тихо…", "…scuff… at the… top… quiet…"),
@@ -331,7 +331,7 @@ object Bestiary {
             T("Корни этого дерева дотянулись до лестницы. Наверху сидит другой хозяин.", "This tree's roots reach the stairs. Another keeper sits at the top."),
             listOf("host_steps"), Body(Shape.GNARL, size = 1.4f, tone = 48, fur = .6f, furLen = 7f, eyes = 2, amp = 7f), most = Most.OLDEST_TREE),
         c("host_steps", Tier.HOST, "Хозяин долгой лестницы", "Keeper of the Long Stairs", Habitat.STEPS, 4,
-            listOf(With("fluger")), listOf(Near(80), Climb(12), Face(Facing.NORTH), Still(30)),
+            listOf(With("fluger")), listOf(Near(80), Steps(100), Face(Facing.NORTH), Still(30)),
             T("Сидит наверху самой длинной лестницы района и смотрит на флюгеры. Поднимись без остановки с Флюгерником в памяти и посмотри на север.",
                 "Sits atop the district's longest stairs watching weathervanes. Climb without stopping with a Vanecrow in memory and look north."),
             T("…шарк… вы…ше… флю…", "…scuff… high…er… vane…"),
