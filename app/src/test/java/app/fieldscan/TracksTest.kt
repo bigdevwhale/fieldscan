@@ -3,6 +3,7 @@ package app.fieldscan
 import app.fieldscan.domain.CircleTrack
 import app.fieldscan.domain.Geo
 import app.fieldscan.domain.Pt
+import app.fieldscan.domain.Recentre
 import app.fieldscan.domain.StepsTrack
 import app.fieldscan.domain.WalkTrack
 import app.fieldscan.sense.Yin
@@ -33,6 +34,19 @@ class TracksTest {
         // standing on the spot with GPS noise: no rounds
         repeat(200) { t.add(Pt(at(sin(it * 1.3) * 2.5, sin(it * 0.7) * 2.5), 5.0, it * 1000L)) }
         assertTrue(abs(t.rounds(true)) < .1)
+    }
+
+    @Test fun recentreAveragesSteadyFixesNearby() {
+        val fixes = listOf(Pt(at(60.0, 2.0), 8.0, 0), Pt(at(60.0, -2.0), 8.0, 1000), Pt(at(500.0, 0.0), 80.0, 2000))
+        val r = Recentre.of(o, fixes)
+        assertTrue("$r", r is Recentre.Ok)
+        assertTrue((r as Recentre.Ok).at.dist(at(60.0, 0.0)) < 1.0)
+    }
+
+    @Test fun recentreRefusesFarOrVague() {
+        assertTrue(Recentre.of(o, listOf(Pt(at(150.0, 0.0), 5.0, 0))) is Recentre.TooFar)
+        assertEquals(Recentre.NoFix, Recentre.of(o, listOf(Pt(at(10.0, 0.0), 40.0, 0))))
+        assertEquals(Recentre.NoFix, Recentre.of(o, emptyList()))
     }
 
     @Test fun stepsCountFromTheFirstReading() {

@@ -53,6 +53,7 @@ import app.fieldscan.domain.Catch
 import app.fieldscan.domain.CircleTrack
 import app.fieldscan.domain.StepsTrack
 import app.fieldscan.domain.Pt
+import app.fieldscan.domain.Recentre
 import app.fieldscan.domain.WalkTrack
 import app.fieldscan.domain.Cond
 import app.fieldscan.domain.Facing
@@ -185,7 +186,7 @@ fun RiteScreen(trace: Trace, m: Moment, places: List<Place>, onBack: () -> Unit,
             // the test build skips steps from home, so it doesn't hold you to the place
             toPlace = near.takeIf { !BuildConfig.DEBUG },
             // a rite may end a walk away from the place (walk 200 m, round it): that's still "there"
-            reach = 60.0 + minOf(fix?.acc?.toDouble() ?: 0.0, 40.0) + steps.maxOf { s -> when (s) { is Step.Walk -> s.m.toDouble(); is Step.Circle -> 70.0; else -> 0.0 } },
+            reach = 60.0 + minOf(fix?.acc?.toDouble() ?: 0.0, 40.0) + steps.maxOf { s -> when (s) { is Step.Walk -> s.m.toDouble(); is Step.Circle -> 70.0 + Recentre.MAX_SHIFT; else -> 0.0 } },
         ) { caught(it) }
         Gap(6.dp)
         steps.forEachIndexed { i, s ->
@@ -466,13 +467,60 @@ private fun DarkStep(sec: Int, m: Moment, onDone: () -> Unit) {
 
 @Composable
 private fun CircleStep(s: Step.Circle, place: Place, fix: Fix?, onDone: () -> Unit) {
-    val track = remember { CircleTrack(place.at) }
+    val ru = LocalRu.current
+    // the centre may be moved up to 100 m from the place by standing there (#3)
+    var centre by remember { mutableStateOf(place.at) }
+    val track = remember(centre) { CircleTrack(centre) }
     var got by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(fix) { fix?.let { track.add(Pt(it.at, it.acc.toDouble(), it.time)); got = track.rounds(s.ccw).toFloat() } }
+    var standing by remember { mutableStateOf(false) }
+    var note by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(centre) { got = 0f }
+    LaunchedEffect(fix, standing) {
+        if (standing) return@LaunchedEffect
+        fix?.let { track.add(Pt(it.at, it.acc.toDouble(), it.time)); got = track.rounds(s.ccw).toFloat() }
+    }
+    if (standing) {
+        RecentreStand(place.at, fix) { r ->
+            standing = false
+            note = when (r) {
+                is Recentre.Ok -> { centre = r.at; if (ru) "Центр здесь. Обходи вокруг этого места." else "The centre is here now. Walk round this spot." }
+                is Recentre.TooFar -> (if (ru) "Слишком далеко от точки: " else "Too far from the place: ") + Words.dist(r.m, ru) +
+                    (if (ru) ", можно не дальше " else "; at most ") + Words.dist(Recentre.MAX_SHIFT, ru) + "."
+                Recentre.NoFix -> if (ru) "GPS неточен — центр не перенесён." else "GPS too vague: the centre stayed put."
+            }
+        }
+        return
+    }
     T(tr("Пройдено кругов: ", "Rounds: ") + "%.1f".format(maxOf(0f, got)) + " / ${s.turns}", Ty.small)
     if (got < -.12f) T(tr("Не в ту сторону.", "The wrong way."), Ty.small.copy(color = C.red))
     Gap(4.dp); Progress(got / s.turns)
+    note?.let { Gap(4.dp); T(it, Ty.small) }
+    Gap(6.dp)
+    Btn(tr("Центр здесь", "Centre here"), outline = true) { note = null; standing = true }
     DoneWhen(got >= s.turns, 0, onDone)
+}
+
+/** Stand still 10 s while the fixes are gathered, then hand back where the new centre would be. */
+@Composable
+private fun RecentreStand(place: Geo, fix: Fix?, onResult: (Recentre) -> Unit) {
+    val sec = 10f
+    val motion = rememberMotion()
+    val fixes = remember { mutableListOf<Pt>() }
+    var t by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(fix) { fix?.let { if (t > 0f) fixes += Pt(it.at, it.acc.toDouble(), it.time) } }
+    val cb by rememberUpdatedState(onResult)
+    val fixNow by rememberUpdatedState(fix)
+    LaunchedEffect(Unit) {
+        while (t < sec) {
+            delay(100)
+            // walking off restarts the stand, so the fixes are of one spot
+            if (motion.moving > .45f) { if (t > 1f) fixes.clear(); t = 0f } else t += .1f
+        }
+        val last = fixNow
+        cb(Recentre.of(place, fixes.ifEmpty { listOfNotNull(last?.let { Pt(it.at, it.acc.toDouble(), it.time) }) }))
+    }
+    T(tr("Стой на месте — прибор запоминает новый центр. Круги начнутся заново.", "Stand still: the device takes this spot as the new centre. The rounds start over."), Ty.small)
+    Gap(4.dp); Progress(t / sec)
 }
 
 /** Up the stairs by the step counter: [n] steps without a stop of more than 25 seconds. */

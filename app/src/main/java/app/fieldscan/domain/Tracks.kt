@@ -25,6 +25,26 @@ class CircleTrack(private val centre: Geo, private val maxR: Double = 70.0) {
     fun rounds(ccw: Boolean) = (if (ccw) -total else total) / 360.0
 }
 
+/** Moving a circle's centre to where the walker stood (#3: a lawn or a six-lane road in the way). */
+sealed interface Recentre {
+    data class Ok(val at: Geo) : Recentre
+    data class TooFar(val m: Double) : Recentre
+    data object NoFix : Recentre
+
+    companion object {
+        const val MAX_SHIFT = 100.0
+
+        /** The average of the steady fixes taken while standing, if it's within [maxShift] of [place]. */
+        fun of(place: Geo, fixes: List<Pt>, maxShift: Double = MAX_SHIFT): Recentre {
+            val good = fixes.filter { it.acc <= 20 }
+            if (good.isEmpty()) return NoFix
+            val c = Geo(good.map { it.at.lat }.average(), good.map { it.at.lon }.average())
+            val d = c.dist(place)
+            return if (d <= maxShift) Ok(c) else TooFar(d)
+        }
+    }
+}
+
 /**
  * Steps without a stop, from the phone's step counter (a running total since reboot): counted from the first
  * reading; no new step for [stallMs] once walking has begun, and the count starts over (#2: the barometer and

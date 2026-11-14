@@ -6,6 +6,16 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [0.14.0] - 2026-11-14
+
+### Added
+- Circles can be walked round another spot: on a circle step, stand anywhere within 100 m of the place, press «Centre here» and hold still for 10 seconds; the rounds then go round that spot and count from zero (#3). For when the way round is a lawn or a six-lane road.
+
+<!-- tg
+Новое: круги вокруг точки можно перенести. Встань в другом месте в пределах 100 м, нажми «Центр здесь» и постой 10 секунд – обходить нужно будет уже вокруг тебя.
+Больше не придётся топтать газон или обходить перекрёсток по трассе.
+-->
+
 ## [0.13.0] - 2026-11-13
 
 ### Changed
