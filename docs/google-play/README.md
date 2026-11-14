@@ -83,7 +83,7 @@ python tools/play.py    # графика для Play
 | Поле | Значение |
 |---|---|
 | App category | Game → **Adventure** |
-| Tags (до 5) | из списка Play: Adventure, Location-based, Mystery, Casual, Single player (или близкие) |
+| Tags (до 5) | Adventure, Puzzle-adventure, Interactive story, Logic puzzle, Casual |
 | Email address | *ваш публичный email* — обязательно, его увидят все |
 | Website | `https://bigdevwhale.github.io/stillcraft/apps/fieldscan/` |
 | Phone | пусто |
@@ -110,10 +110,9 @@ python tools/play.py    # графика для Play
 - Email — ваш; категория — **Game**.
 - Насилие, кровь, сексуальный контент, ненормативная лексика, наркотики/алкоголь/табак, азартные игры — **No**.
   Ловушка «ловит» существо снимком, сражений нет; заряд — шаги, не деньги.
-- **Страх / пугающие элементы** — существа показаны зернистыми ночными ИК-кадрами, немного жутковато,
-  но без крови, нападений и скримеров. Честный ответ — **мягкие пугающие элементы (Yes, mild)**;
-  ожидаемый результат тогда PEGI 7 / Everyone 10+ / 6+. Если ответить **No**, будет Everyone / PEGI 3 —
-  при придирке ревью придётся менять, поэтому рекомендую Yes, mild.
+- **Fear** — существа показаны зернистыми ночными ИК-кадрами, немного жутковато, но без крови, нападений
+  и скримеров: **Yes** → **Scary elements** (Horrifying — нет) → частота **Often** (кадр после каждой поимки,
+  весь бестиарий из них). Ожидаемый результат — около PEGI 7.
 - **Users interact / share content** — **No**: общения между пользователями нет; ссылки на чат в Telegram
   открываются во внешнем приложении.
 - **Shares user's location with other users** — **No**.
