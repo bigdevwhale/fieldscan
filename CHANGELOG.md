@@ -6,6 +6,16 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [0.14.1] - 2026-11-15
+
+### Changed
+- Getting ready for Google Play: each release now also carries an app bundle (`Fieldscan-v<version>.aab`) with every language inside, so the in-app language switch keeps working after a Play install.
+- A privacy policy (`PRIVACY.md`, in English and Russian); Health Connect's permission screen now opens it.
+
+<!-- tg
+Сканер готовится к выходу в Google Play: появилась политика конфиденциальности, а в игре всё по-прежнему.
+-->
+
 ## [0.14.0] - 2026-11-14
 
 ### Added
