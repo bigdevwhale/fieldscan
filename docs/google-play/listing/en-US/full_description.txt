@@ -1,0 +1,25 @@
+Creatures live in the city. Each has its own kind of place and its own way of showing itself. The device hears only a trace; who is there and how to call it out is yours to work out.
+
+Stand in the middle of a bridge facing upstream, sing an A by a fountain, meet the dawn at a bus stop, walk round a crossroads three times anticlockwise — and a trail camera catches what came.
+
+HOW IT WORKS
+• The air. A round scanner shows traces around you: the kind of place, the distance, the direction, a scrap of signal ("…splash… under… step…") and its strength. The creature itself is never on a map.
+• The riddle. Each trace opens a riddle in the bestiary: where it waits and what it wants. Riddles are honest: there's always the kind of place and at least one condition.
+• The rite. One to four steps, each checked by the phone: stand in the middle of a span (GPS), face upstream (compass), keep still, sing a note (pitch only, nothing recorded), blink a letter in Morse with the torch, walk round a place, climb the stairs without stopping, walk along the water in fog.
+• The frame. When the rite is done, the trail camera fires: a grainy night IR frame with the camera number, date and time. The hour, fog, rain, snow and frost all show in it.
+• The trap eats steps. Walking charges the trap; the stronger the creature, the more steps a catch takes. Steps come from the phone's step counter or, if you choose, from Health Connect.
+• Rumours. Every catch tells about someone else, so the bestiary grows as a web, not a list.
+• The journal. The notes of N. Vetrova, the device's last owner, and what happened after she went to the confluence. Pages open as you walk and catch: three years of story.
+
+THE BESTIARY
+• Dwellers live in places from OpenStreetMap: bridges, springs and fountains, long stairs, bus stops, street lamps, old trees, crossroads, churches, monuments, piers, underpasses, benches, viewpoints.
+• Keepers live in your district's most-of-all places: the oldest tree, the longest stairs, the busiest crossroads.
+• Wanderers come with the real weather: fog by the water, rain, strong wind, frost, snowfall, a full moon.
+• Legends stand on points of the planet. Homelings settle at your own home.
+
+50 creatures in this beta. A place always holds the same creature, and not every place is inhabited.
+
+PRIVACY
+Free, no ads, no accounts, no analytics. Your coordinates stay on the phone: the network is used only for the map around you (OpenStreetMap) and the weather (MET Norway). The microphone only measures the pitch of your voice and records nothing. Open source.
+
+Russian and English.

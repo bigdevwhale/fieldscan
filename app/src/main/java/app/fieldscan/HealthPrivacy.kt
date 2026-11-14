@@ -14,6 +14,6 @@ class HealthPrivacy : Activity() {
     }
 
     private companion object {
-        const val URL = "https://github.com/bigdevwhale/fieldscan#privacy"
+        const val URL = "https://github.com/bigdevwhale/fieldscan/blob/main/PRIVACY.md"
     }
 }
