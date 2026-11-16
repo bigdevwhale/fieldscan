@@ -11,15 +11,22 @@ import app.fieldscan.domain.Upgrade
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.FileOutputStream
 
-/** Saves the game as JSON in the app's files, atomically (write aside, then rename). */
+/**
+ * Saves the game as JSON in the app's files, atomically and durably: write aside, force it to the disk, then
+ * rename, keeping the previous save as a spare. A sudden power-off then leaves either the old save or the new one,
+ * never an empty file that would start the game over.
+ */
 class Store(context: Context) {
     private val dir = context.filesDir
     private val stateFile = File(dir, "state.json")
     val tiles = File(dir, "tiles").apply { mkdirs() }
     val frames = File(dir, "frames").apply { mkdirs() }
 
-    fun load(): GameState? = runCatching { fromJson(JSONObject(stateFile.readText())) }.getOrNull()
+    /** The save; if it is missing mid-write, the synced new copy beside it; else the previous save. */
+    fun load(): GameState? = sequenceOf(stateFile, File(dir, "state.json.tmp"), File(dir, "state.json.bak"))
+        .firstNotNullOfOrNull { f -> runCatching { fromJson(JSONObject(f.readText())) }.getOrNull() }
 
     @Synchronized
     fun save(s: GameState) = write(stateFile, toJson(s).toString())
@@ -30,8 +37,9 @@ class Store(context: Context) {
     companion object {
         fun write(f: File, text: String) {
             val tmp = File(f.parentFile, f.name + ".tmp")
-            tmp.writeText(text)
-            if (!tmp.renameTo(f)) { f.delete(); tmp.renameTo(f) }
+            FileOutputStream(tmp).use { out -> out.write(text.toByteArray()); out.flush(); out.fd.sync() }
+            if (f.exists()) f.renameTo(File(f.parentFile, f.name + ".bak"))
+            tmp.renameTo(f)   // if this fails, load() still finds the spare or the synced .tmp
         }
 
         fun toJson(s: GameState): JSONObject = JSONObject().apply {

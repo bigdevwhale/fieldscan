@@ -1,1 +1,1 @@
-First release on Google Play. Circles can now be walked round another spot: stand within 100 m of the place, press «Centre here» and hold still for 10 seconds.
+Saving is now safe from a sudden power-off: if the battery dies or the phone freezes, the game no longer starts over. The previous save is kept as a spare.

@@ -6,6 +6,16 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [0.14.2] - 2026-11-16
+
+### Fixed
+- A sudden power-off (a flat battery, a frozen phone) could leave the save empty, and the game then started over. The save is now forced to the disk before it replaces the old one, the previous save is kept beside it as a spare, and a damaged save falls back to that spare instead of a new game. Map tiles are written the same way.
+
+<!-- tg
+Поправили сохранение: если телефон внезапно выключится (сел аккумулятор, завис), игра больше не может начаться заново.
+Прогресс записывается на диск надёжно, а рядом хранится прошлое сохранение на всякий случай.
+-->
+
 ## [0.14.1] - 2026-11-15
 
 ### Changed
