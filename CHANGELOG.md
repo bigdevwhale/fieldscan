@@ -6,6 +6,17 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [0.14.3] - 2026-11-20
+
+### Fixed
+- **Weak GPS is said plainly and moves nothing (#5):** a fix worse than 60 m no longer moves the map or counts for tasks, so the traces around don't vanish; the air says the signal is weak and to step into the open.
+- **The archive lands at home (#4):** it is set and moved only on a sharp fix, and the Device screen offers «I'm home – move the archive here».
+
+<!-- tg
+Если GPS ловит плохо, Сканер теперь прямо об этом пишет, а существа вокруг больше не пропадают из-за скачков сигнала.
+Архив ставится и переносится только при точном сигнале: в «Приборе» есть кнопка «Я дома – перенести архив сюда».
+-->
+
 ## [0.14.2] - 2026-11-16
 
 ### Fixed
