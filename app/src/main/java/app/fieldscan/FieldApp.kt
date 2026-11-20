@@ -14,6 +14,7 @@ import app.fieldscan.data.DemoSeed
 import app.fieldscan.data.Met
 import app.fieldscan.data.Osm
 import app.fieldscan.data.Store
+import app.fieldscan.data.Transfer
 import app.fieldscan.domain.Bestiary
 import app.fieldscan.domain.Catch
 import app.fieldscan.domain.GameState
@@ -206,6 +207,37 @@ class Container(context: Context) {
     fun buy(u: Upgrade) = update { s -> if (s.parts >= u.cost && u !in s.upgrades) s.copy(parts = s.parts - u.cost, upgrades = s.upgrades + u) else s }
 
     fun reset() { update { GameState() } }
+
+    // ——— moving to another phone: a file the observer carries themselves ———
+    private val incoming get() = java.io.File(app.cacheDir, "incoming")
+
+    /** Writes the save and the catch photos to [uri]. */
+    suspend fun exportTo(uri: android.net.Uri): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            requireNotNull(app.contentResolver.openOutputStream(uri, "wt")) { "can't write" }.use { Transfer.write(it, _state.value, store.frames) }
+        }
+    }
+
+    /** Reads a save from [uri] aside, without touching the current game; [applyImport] puts it in place. */
+    suspend fun peekImport(uri: android.net.Uri): Result<GameState> = withContext(Dispatchers.IO) {
+        runCatching {
+            requireNotNull(app.contentResolver.openInputStream(uri)) { "can't read" }.use { Transfer.read(it, incoming) }
+        }.onFailure { incoming.deleteRecursively() }
+    }
+
+    /** Replaces the game with [s] read by [peekImport]; its photos take the place of the old ones. */
+    suspend fun applyImport(s: GameState) {
+        withContext(Dispatchers.IO) {
+            // the rendered frames go too: they grow again, from the new photos
+            store.frames.listFiles().orEmpty().forEach { it.delete() }
+            incoming.listFiles().orEmpty().forEach { f -> if (!f.renameTo(java.io.File(store.frames, f.name))) f.copyTo(java.io.File(store.frames, f.name), true) }
+            incoming.deleteRecursively()
+            Frames.forget()
+        }
+        update { s }
+    }
+
+    fun dropImport() { scope.launch(Dispatchers.IO) { incoming.deleteRecursively() } }
 
     // ——— steps: they charge the trap ———
     val stepSensor = StepSensor(app)

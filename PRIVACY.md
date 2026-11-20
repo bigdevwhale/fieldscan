@@ -1,6 +1,6 @@
 # Fieldscan — Privacy Policy
 
-*Last updated: 14 November 2026*
+*Last updated: 20 November 2026*
 
 Fieldscan is an Android game: an anomaly scanner for your own city. Creatures wait at real places around
 you (bridges, springs, stairs, crossroads), and you call them out with small rites checked by the phone's
@@ -58,6 +58,13 @@ The use of information received from Health Connect adheres to the
 [Health Connect Permissions policy](https://support.google.com/googleplay/android-developer/answer/12991134),
 including the Limited Use requirements.
 
+## Moving to another phone
+
+«Save to a file» in Device writes your progress (everything listed in «What stays on your device»,
+including your home point) and the trail camera's photos into one file, saved where you choose. The app
+sends it nowhere: where it goes after that (a messenger, a cloud drive) is up to you, so keep it like any
+private file. «Open a file» on the other phone reads it back.
+
 ## Links
 
 The «Telegram» items in Device open links to the StillCraft chat and the feedback bot in your browser or the
@@ -90,7 +97,7 @@ Questions — through an issue: <https://github.com/bigdevwhale/fieldscan/issues
 
 # Политика конфиденциальности
 
-*Обновлено: 14 ноября 2026*
+*Обновлено: 20 ноября 2026*
 
 «Сканер» (Fieldscan) — игра для Android: сканер аномалий для вашего города. Существа ждут у настоящих мест
 вокруг (мосты, родники, лестницы, перекрёстки), и вы вызываете их маленькими обрядами, которые проверяют
@@ -145,6 +152,13 @@ Connect, не читает другие данные о здоровье и ни
 Использование информации, полученной из Health Connect, соответствует
 [политике разрешений Health Connect](https://support.google.com/googleplay/android-developer/answer/12991134),
 включая требования Limited Use.
+
+## Перенос на другой телефон
+
+«Сохранить в файл» в Приборе записывает ваш прогресс (всё из раздела «Что хранится на устройстве»,
+включая точку дома) и фото фотоловушки в один файл, туда, куда вы выберете. Приложение его никуда не
+отправляет: куда он попадёт дальше (мессенджер, облачный диск), решаете вы, поэтому храните его как
+любой личный файл. «Открыть файл» на другом телефоне загружает его обратно.
 
 ## Ссылки
 

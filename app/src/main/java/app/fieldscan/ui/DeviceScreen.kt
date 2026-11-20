@@ -23,6 +23,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import app.fieldscan.sense.HealthSteps
 import androidx.compose.ui.Alignment
@@ -134,6 +136,8 @@ fun DeviceScreen(state: GameState, fix: Fix?, now: Long) {
         Gap(6.dp)
         Btn(tr("Пролог", "Prologue"), outline = true) { co.openTab.value = "intro" }
         Gap(12.dp)
+        Move(state)
+        Gap(12.dp)
         T(tr("Сообщество", "Community"), Ty.head)
         Gap(4.dp)
         val ctx = LocalContext.current
@@ -218,6 +222,66 @@ private fun StepSource(state: GameState) {
             }
         }
     }
+}
+
+/** Moving the game to another phone: a file out, a file in (asked again before it replaces anything). */
+@Composable
+private fun Move(state: GameState) {
+    val ru = LocalRu.current
+    val co = LocalContext.current.container
+    val scope = rememberCoroutineScope()
+    var note by remember { mutableStateOf<Pair<String, Boolean>?>(null) }   // text, is it bad news
+    var pending by remember { mutableStateOf<GameState?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    val saved = tr("Прогресс сохранён в файл. Открой его на новом телефоне кнопкой ниже.", "Progress saved to the file. Open it on the new phone with the button below.")
+    val notSaved = tr("Не удалось сохранить файл.", "Couldn't save the file.")
+    val notRead = tr("Это не файл прогресса Сканера или он повреждён.", "This isn't a Fieldscan progress file, or it's damaged.")
+    val done = tr("Прогресс перенесён. Шаги пока считает телефон — Health Connect можно снова выбрать выше.",
+        "Progress moved. The phone counts steps for now: Health Connect can be chosen again above.")
+    val out = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        busy = true
+        scope.launch { note = if (co.exportTo(uri).isSuccess) saved to false else notSaved to true; busy = false }
+    }
+    val inp = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        busy = true; note = null
+        scope.launch { co.peekImport(uri).onSuccess { pending = it }.onFailure { note = notRead to true }; busy = false }
+    }
+    T(tr("Перенос на другой телефон", "Moving to another phone"), Ty.head)
+    Gap(4.dp)
+    T(tr("Весь прогресс и фото поимок — в один файл. Отправь его себе (в мессенджер, на диск) и открой на новом телефоне.",
+        "All progress and the catch photos in one file. Send it to yourself (a messenger, a drive) and open it on the new phone."), Ty.small)
+    Gap(6.dp)
+    val p = pending
+    if (p == null) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Btn(tr("Сохранить в файл", "Save to a file"), Modifier.weight(1f), outline = true, enabled = !busy) {
+                out.launch("fieldscan-" + java.time.LocalDate.now() + ".zip")
+            }
+            Btn(tr("Открыть файл", "Open a file"), Modifier.weight(1f), outline = true, enabled = !busy) {
+                inp.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream"))
+            }
+        }
+    } else Frame(red = true) {
+        Column {
+            val kinds = p.catches.map { it.creature }.toSet().size
+            T(tr("В файле: существ — $kinds, кадров — ${p.catches.size}, деталей — ${p.parts}.",
+                "In the file: ${kinds} creatures, ${p.catches.size} frames, ${p.parts} parts."), Ty.body)
+            Gap(4.dp)
+            T(tr("Прогресс на этом телефоне (кадров — ${state.catches.size}) будет заменён. Вернуть его будет нельзя.",
+                "The progress on this phone (${state.catches.size} frames) will be replaced. It can't be undone."), Ty.small.copy(color = C.red))
+            Gap(6.dp)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Btn(tr("Заменить", "Replace"), Modifier.weight(1f), red = true, enabled = !busy) {
+                    busy = true
+                    scope.launch { co.applyImport(p); pending = null; busy = false; note = done to false }
+                }
+                Btn(tr("Отмена", "Cancel"), Modifier.weight(1f), outline = true, enabled = !busy) { pending = null; co.dropImport() }
+            }
+        }
+    }
+    note?.let { (text, bad) -> Gap(4.dp); T(text, Ty.small.copy(color = if (bad) C.red else C.ink)) }
 }
 
 @Composable

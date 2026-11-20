@@ -26,6 +26,9 @@ object Frames {
         if (TrailCam.typeface == null) TrailCam.typeface = runCatching { ResourcesCompat.getFont(ctx, R.font.m6x11) }.getOrNull()
     }
 
+    /** Forgets the frames held in memory (the game was replaced by another). */
+    fun forget() = cache.clear()
+
     /** Where the real photo of a catch is kept. */
     fun photoFile(dir: File, c: Catch) = File(dir, "photo_" + c.id.replace('@', '_').replace(':', '_') + ".jpg")
 
