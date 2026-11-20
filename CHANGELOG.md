@@ -6,6 +6,16 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [0.15.0] - 2026-11-20
+
+### Added
+- **Moving to another phone:** Device → «Save to a file» puts all progress and the catch photos into one file; «Open a file» on the new phone shows what's inside and replaces the progress only after you confirm. No server: you carry the file yourself.
+
+<!-- tg
+Новое: прогресс можно перенести на другой телефон. В «Приборе» нажми «Сохранить в файл», отправь его себе и на новом телефоне нажми «Открыть файл».
+Переносятся все существа, кадры, детали и фото поимок.
+-->
+
 ## [0.14.3] - 2026-11-20
 
 ### Fixed
