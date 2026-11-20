@@ -306,7 +306,9 @@ private fun Onboarding(fix: Fix?, onAskLocation: () -> Unit, onHome: (app.fields
             T(tr("Отметь дом: сюда ты будешь сдавать снимки.", "Mark home: this is where you'll hand in frames."))
             T(tr("Точность ${fix.acc.toInt()} м", "Accuracy ${fix.acc.toInt()} m"), Ty.small)
             Gap(8.dp)
-            Btn(tr("Я дома — здесь архив", "I'm home — the archive is here"), red = true) { onHome(fix.at) }
+            // A weak fix would put the archive down the street (#4): wait for a sharper one.
+            if (fix.acc > app.fieldscan.domain.Rules.WEAK_GPS) T(tr("Слабый сигнал GPS: архив встанет не туда. Подожди немного или подойди к окну.", "Weak GPS signal: the archive would land in the wrong place. Wait a little or go to a window."), Ty.small)
+            else Btn(tr("Я дома — здесь архив", "I'm home — the archive is here"), red = true) { onHome(fix.at) }
             Gap(6.dp)
             T(tr("Можно отметить позже из любого места: Прибор → Перенести архив.", "You can move it later: Device → Move the archive."), Ty.small)
         }

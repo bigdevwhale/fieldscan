@@ -106,6 +106,9 @@ fun ScanScreen(traces: List<Trace>, fix: Fix?, tuning: Tuning, state: GameState,
             Legend(finds.isNotEmpty(), state.stops.any { !it.done } && !guided, "⌀ " + Words.dist(zoom, ru) + if (heading == null || northUp) tr(" · С↑", " · N↑") else "")
             val line = when {
                 fix == null -> tr("Ищу спутники…", "Looking for satellites…")
+                // as in Fogwalk: say plainly that the signal is weak, and what to do
+                fix.acc > app.fieldscan.domain.Rules.WEAK_GPS -> tr("Слабый сигнал GPS (±${fix.acc.toInt()} м): эфир не сдвинется, пока сигнал не станет точнее. Выйди на открытое место, подальше от высоких стен.",
+                    "Weak GPS signal (±${fix.acc.toInt()} m): the air won't move until it gets sharper. Step into the open, away from tall walls.")
                 tuning.busy -> tr("Настройка на эфир: карта ${tuning.done}/${tuning.total}", "Tuning in: map ${tuning.done}/${tuning.total}")
                 tuning.failed -> tr("Нет связи с картой — слышу только ближние следы", "No map connection — only nearby traces")
                 else -> null

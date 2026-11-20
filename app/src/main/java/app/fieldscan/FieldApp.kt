@@ -100,6 +100,9 @@ class Container(context: Context) {
         if (!test && System.currentTimeMillis() < mockUntil) return
         fix.value = f
         if (BuildConfig.DEMO) return
+        // A weak fix (indoors, among tall walls) can land hundreds of metres off: it shows where you might be,
+        // but it neither moves the map nor counts for tasks, so the traces around don't vanish (#5).
+        if (f.acc > Rules.WEAK_GPS) return
         if (!test) gpsSteps(f)
         checkEpisode(f)
         checkWeek(f)

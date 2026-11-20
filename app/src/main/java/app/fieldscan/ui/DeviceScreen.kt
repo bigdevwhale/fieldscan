@@ -126,7 +126,11 @@ fun DeviceScreen(state: GameState, fix: Fix?, now: Long) {
             }
         }
         Gap(10.dp)
-        if (fix != null) Btn(tr("Перенести архив сюда", "Move the archive here"), outline = true) { co.setHome(fix.at) }
+        // The archive is home: move it here when the device thinks home is elsewhere (#4), only on a sharp fix.
+        if (fix != null) {
+            if (fix.acc > app.fieldscan.domain.Rules.WEAK_GPS) T(tr("Перенести архив можно, когда сигнал GPS точнее (сейчас ±${fix.acc.toInt()} м).", "The archive can be moved once GPS is sharper (now ±${fix.acc.toInt()} m)."), Ty.small)
+            else Btn(tr("Я дома — перенести архив сюда", "I'm home — move the archive here"), outline = true) { co.setHome(fix.at) }
+        }
         Gap(6.dp)
         Btn(tr("Пролог", "Prologue"), outline = true) { co.openTab.value = "intro" }
         Gap(12.dp)

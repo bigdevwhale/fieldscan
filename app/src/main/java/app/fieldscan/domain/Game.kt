@@ -91,6 +91,9 @@ data class GameState(
 }
 
 object Rules {
+    /** Worse than this many metres a fix is too weak to move the map, count a task or set the archive (#4, #5). */
+    const val WEAK_GPS = 60f
+
     const val DAY = 86_400_000L
     /** Share of fitting places that stay empty: not every lamp is haunted. */
     const val EMPTY = 0.4
