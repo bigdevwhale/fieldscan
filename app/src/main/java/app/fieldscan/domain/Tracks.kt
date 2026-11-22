@@ -25,6 +25,31 @@ class CircleTrack(private val centre: Geo, private val maxR: Double = 70.0) {
     fun rounds(ccw: Boolean) = (if (ccw) -total else total) / 360.0
 }
 
+/**
+ * Walking round by the compass (#6): going round a point, one's heading turns a full 360° a round, whatever the GPS
+ * does. Only turning while walking counts, sharp jumps (a phone swung in the hand) don't, and a round needs at
+ * least [secPerRound] seconds of walking, so spinning on the spot is no round. Clockwise is positive, as above.
+ */
+class HeadingTrack(private val secPerRound: Double = 12.0) {
+    var total = 0.0; private set
+    var walked = 0.0; private set
+    private var prev: Double? = null
+    /** [heading] in degrees, [moving] whether one is walking, [dt] seconds since the last call. */
+    fun add(heading: Double, moving: Boolean, dt: Double) {
+        val p = prev
+        prev = heading
+        if (!moving || p == null) return
+        val d = Geo.turn(p, heading)
+        if (abs(d) < 45) total += d
+        walked += dt
+    }
+    fun rounds(ccw: Boolean): Double {
+        val r = (if (ccw) -total else total) / 360.0
+        val most = walked / secPerRound
+        return if (r > 0) minOf(r, most) else r
+    }
+}
+
 /** Moving a circle's centre to where the walker stood (#3: a lawn or a six-lane road in the way). */
 sealed interface Recentre {
     data class Ok(val at: Geo) : Recentre

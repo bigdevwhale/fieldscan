@@ -6,6 +6,15 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [0.15.1] - 2026-11-22
+
+### Fixed
+- **Rounds count even when the GPS jumps (#6):** the compass counts the rounds too. Going round a point, your heading turns a full circle each round; only turning while walking near the place counts, a swing of the phone doesn't, and a round takes at least 12 seconds of walking. The better of the GPS and compass counts goes.
+
+<!-- tg
+Круги в обрядах теперь считает и компас: если GPS скачет, держите телефон перед собой и обходите место – оборот засчитается
+-->
+
 ## [0.15.0] - 2026-11-20
 
 ### Added

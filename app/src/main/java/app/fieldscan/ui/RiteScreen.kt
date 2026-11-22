@@ -51,6 +51,7 @@ import app.fieldscan.Fix
 import app.fieldscan.container
 import app.fieldscan.domain.Catch
 import app.fieldscan.domain.CircleTrack
+import app.fieldscan.domain.HeadingTrack
 import app.fieldscan.domain.StepsTrack
 import app.fieldscan.domain.Pt
 import app.fieldscan.domain.Recentre
@@ -471,13 +472,32 @@ private fun CircleStep(s: Step.Circle, place: Place, fix: Fix?, onDone: () -> Un
     // the centre may be moved up to 100 m from the place by standing there (#3)
     var centre by remember { mutableStateOf(place.at) }
     val track = remember(centre) { CircleTrack(centre) }
-    var got by remember { mutableFloatStateOf(0f) }
+    // the compass counts too, for when the GPS jumps about (#6): the better of the two goes
+    val turns = remember(centre) { HeadingTrack() }
+    val heading by rememberHeading(fix?.at)
+    val motion = rememberMotion()
+    var gps by remember { mutableFloatStateOf(0f) }
+    var compass by remember { mutableFloatStateOf(0f) }
+    val got = maxOf(gps, compass)
     var standing by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(centre) { got = 0f }
+    LaunchedEffect(centre) { gps = 0f; compass = 0f }
     LaunchedEffect(fix, standing) {
         if (standing) return@LaunchedEffect
-        fix?.let { track.add(Pt(it.at, it.acc.toDouble(), it.time)); got = track.rounds(s.ccw).toFloat() }
+        fix?.let { track.add(Pt(it.at, it.acc.toDouble(), it.time)); gps = track.rounds(s.ccw).toFloat() }
+    }
+    val fixNow by rememberUpdatedState(fix)
+    val headingNow by rememberUpdatedState(heading)
+    LaunchedEffect(centre, standing) {
+        if (standing) return@LaunchedEffect
+        while (true) {
+            delay(200)
+            val h = headingNow ?: continue
+            // near the place, as far as the GPS can tell; without a fix the compass is trusted
+            val near = fixNow?.let { it.at.dist(centre) <= 70.0 + minOf(it.acc.toDouble(), 40.0) } ?: true
+            turns.add(h.toDouble(), near && motion.moving > .45f, .2)
+            compass = turns.rounds(s.ccw).toFloat()
+        }
     }
     if (standing) {
         RecentreStand(place.at, fix) { r ->
@@ -495,6 +515,7 @@ private fun CircleStep(s: Step.Circle, place: Place, fix: Fix?, onDone: () -> Un
     if (got < -.12f) T(tr("Не в ту сторону.", "The wrong way."), Ty.small.copy(color = C.red))
     Gap(4.dp); Progress(got / s.turns)
     note?.let { Gap(4.dp); T(it, Ty.small) }
+    if (heading != null) { Gap(4.dp); T(tr("Держи телефон перед собой: круги считает и компас, если GPS скачет.", "Hold the phone in front of you: the compass counts the rounds too when the GPS jumps."), Ty.small.copy(color = C.muted)) }
     Gap(6.dp)
     Btn(tr("Центр здесь", "Centre here"), outline = true) { note = null; standing = true }
     DoneWhen(got >= s.turns, 0, onDone)

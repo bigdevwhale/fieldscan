@@ -2,6 +2,7 @@ package app.fieldscan
 
 import app.fieldscan.domain.CircleTrack
 import app.fieldscan.domain.Geo
+import app.fieldscan.domain.HeadingTrack
 import app.fieldscan.domain.Pt
 import app.fieldscan.domain.Recentre
 import app.fieldscan.domain.StepsTrack
@@ -107,5 +108,22 @@ class TracksTest {
         }
         val got = Yin.pitch(buf, 22050)
         assertTrue("$got", got != null && abs(got - 220.0) < 5)
+    }
+
+    /** The compass counts rounds while walking, not spinning on the spot or swinging the phone (#6). */
+    @Test fun headingCountsRoundsWhileWalking() {
+        val t = HeadingTrack(secPerRound = 12.0)
+        // one round clockwise in 30 s of walking, a sample every 0.2 s
+        repeat(151) { t.add(it * 360.0 / 150 % 360, moving = true, dt = .2) }
+        assertEquals(1.0, t.rounds(ccw = false), .02)
+        assertTrue(t.rounds(ccw = true) < 0)
+        // spinning on the spot in 3 s is capped by the time walked
+        val spin = HeadingTrack(secPerRound = 12.0)
+        repeat(31) { spin.add(it * 12.0 % 360, moving = true, dt = .1) }
+        assertEquals(.25, spin.rounds(false), .01)
+        // standing still while the phone turns counts nothing
+        val still = HeadingTrack()
+        repeat(151) { still.add(it * 360.0 / 150 % 360, moving = false, dt = .2) }
+        assertEquals(0.0, still.rounds(false), 1e-9)
     }
 }
